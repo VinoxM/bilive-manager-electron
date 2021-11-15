@@ -258,8 +258,8 @@
                 this.posX = this.$bSetting.get('posX') || 0
                 this.posY = this.$bSetting.get('posY') || 0
                 this.medalVisible = this.$bSetting.get('medalVisible') || false
-                this.effectFlag = this.$bSetting.get('effectFlag') || false
-                this.joinShow = this.$bSetting.get('joinShow') || false
+                this.effectFlag = this.$bSetting.get('effectFlag') || true
+                this.joinShow = this.$bSetting.get('joinShow') || true
                 this.bColor = this.$bSetting.get('bColor') || 'rgba(0,0,0,0.5)'
                 this.uNameColor = this.$bSetting.get('uNameColor') || '#a6c0e8'
                 this.bMessageColor = this.$bSetting.get('bMessageColor') || '#ffffff'
