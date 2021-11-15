@@ -155,7 +155,7 @@
                     areaId: 0,
                     areaName: '',
                     link: '',
-                    roomId: '',
+                    roomId: 0,
                     status: 0,
                     title: '',
                     uid: 0,
@@ -263,7 +263,7 @@
                 this.bColor = this.$bSetting.get('bColor') || 'rgba(0,0,0,0.5)'
                 this.uNameColor = this.$bSetting.get('uNameColor') || '#a6c0e8'
                 this.bMessageColor = this.$bSetting.get('bMessageColor') || '#ffffff'
-                this.giftColor = this.$bSetting.get('giftColor') || '#ffffff'
+                this.giftColor = this.$bSetting.get('giftColor') || '#a6c0e8'
             },
             saveSetting() {
                 this.$bSetting.set('clientHeight', this.clientHeight)

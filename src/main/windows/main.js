@@ -37,16 +37,17 @@ export const main = {
             app.exit()
         })
 
-        ipcMain.on('close-main', () => {
-            mainWindow.close()
-            app.exit()
-        })
-
-        ipcMain.on('min-main', (e, flag) => {
+        ipcMain.on('close-main', (e, flag) => {
             if (flag)
                 mainWindow.hide()
-            else
-                mainWindow.minimize()
+            else {
+                mainWindow.close()
+                app.exit()
+            }
+        })
+
+        ipcMain.on('min-main', (e) => {
+            mainWindow.minimize()
         })
 
         // mainWindow.openDevTools({mode: 'undocked'});

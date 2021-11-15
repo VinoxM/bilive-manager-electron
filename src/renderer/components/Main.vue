@@ -183,10 +183,10 @@
                 })
             },
             windowMinimize() {
-                this.ipcRenderer.send('min-main', this.minToTay)
+                this.ipcRenderer.send('min-main')
             },
             windowClose() {
-                this.ipcRenderer.send('close-main')
+                this.ipcRenderer.send('close-main', this.minToTay)
             },
             handleNumber(num) {
                 if (num < 10000) {
