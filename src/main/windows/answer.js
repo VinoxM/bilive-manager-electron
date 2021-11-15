@@ -17,7 +17,8 @@ export const answer = {
             frame: false,
             resizable: false,
             alwaysOnTop: true,
-            skipTaskbar: true
+            skipTaskbar: true,
+            maximizable: false
         })
 
         let answerWindow = answer.answerWindow

@@ -1,10 +1,10 @@
 <template>
     <div class="barrage-container" @mouseup="dividerFlag=false" @mousemove="dividerMove"
-         @mouseleave="dividerFlag=false" :style="{cursor: dividerFlag?'ns-resize':'default'}">
+         @mouseleave="dividerFlag=false" :style="{cursor: dividerFlag?'ns-resize':'default', background: bColor}">
         <div class="barrage-header" v-show="!throughFlag">
             <div class="live-avatar-model" :style="avatarColor" :title="roomTitle" @click="openUrl"></div>
             <img class="live-avatar" :src="avatar" draggable="false">
-            <span class="live-title">
+            <span class="live-title" :style="{width:titleWidth+'px'}">
                 {{roomInfo.title}}
             </span>
             <div class="barrage-header-tool">
@@ -18,21 +18,29 @@
                          :style="{color:onTop?'#92e5de':'white'}" @click.native="toggleOnTop"></el-icon>
                 <el-icon title="点击穿透" name="mouse" class="tool-btn btn-through"
                          :style="{color:throughFlag?'#92e5de':'white'}" @click.native="clickThrough"></el-icon>
-                <el-icon title="关闭" name="close" class="tool-btn btn-close" @click.native="barrageClose"></el-icon>
+                <el-icon title="左键打开设置,右键关闭窗口" name="setting" class="tool-btn btn-close"
+                         @click.native="settingVisible = true"
+                         @click.right.native="barrageClose"></el-icon>
             </div>
         </div>
         <div style="height: 36px" v-if="!throughFlag"></div>
+        <div class="barrage-effect" :style="{height:boxHeight+'px'}">
+            <div class="barrage-effect-box" id="effect">
+            </div>
+        </div>
         <div :class="bScrollHide?'barrage-box scroll-hide':'barrage-box'"
-             :style="{height:boxHeight+'px'}"
+             :style="{height:boxHeight+'px',top: throughFlag?0:'36px'}"
              @wheel="handleBarrageWheel" @mouseleave="bScrollCountdown"
              draggable="false" id="barrage">
         </div>
         <div class="barrage-divider" :style="{height: dividerHeight+'px'}"
+             v-show="joinShow"
              @mousedown="dividerFlag=true" draggable="false">
         </div>
         <div :class="jScrollHide?'barrage-join scroll-hide':'barrage-join'"
              :style="{height:joinHeight+'px'}"
              @wheel="handleJoinWheel" @mouseleave="jScrollCountdown"
+             v-show="joinShow"
              draggable="false" id="join">
 
         </div>
@@ -44,19 +52,68 @@
                        placeholder="请选择..." @change="cacheChanged">
                 <el-option-group v-for="group in cacheGroups" :label="group.label" :key="group.label">
                     <el-option v-for="item in group.children" :key="item.value" :label="item.label"
-                               :value="item.value"></el-option>
+                               :value="item.value" :disabled="item.roomId===0"></el-option>
                 </el-option-group>
             </el-select>
             <div slot="footer">
                 <el-link icon="el-icon-check" @click="saveAndConnect">保存</el-link>
             </div>
         </el-dialog>
+
+        <el-drawer :visible.sync="settingVisible" width="100%" direction="ttb" title="设置"
+                   size="500px" class="barrage-setting">
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">窗口宽高</span>
+                <span>{{clientWidth}}</span> x <span>{{clientHeight}}</span>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">窗口位置</span>
+                (<span>{{posX}}</span>, <span>{{posY}}</span>)
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">粉丝勋章</span>
+                <el-switch active-text="显示" inactive-text="隐藏" v-model="medalVisible"></el-switch>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">进场特效</span>
+                <el-switch active-text="显示" inactive-text="隐藏" v-model="effectFlag"></el-switch>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">进场/礼物</span>
+                <el-switch active-text="显示" inactive-text="隐藏" v-model="joinShow"></el-switch>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">背景颜色</span>
+                <el-color-picker v-model="bColor" show-alpha></el-color-picker>
+                <el-link style="margin-left: 20px" @click.native="bColor='rgba(0,0,0,0.5)'">重置默认</el-link>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">用户颜色</span>
+                <el-color-picker v-model="uNameColor"></el-color-picker>
+                <el-link style="margin-left: 20px" @click.native="uNameColor='#a6c0e8'">重置默认</el-link>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">弹幕颜色</span>
+                <el-color-picker v-model="bMessageColor"></el-color-picker>
+                <el-link style="margin-left: 20px" @click.native="bMessageColor='#ffffff'">重置默认</el-link>
+            </el-row>
+            <el-row class="barrage-setting-row">
+                <span class="barrage-setting-label">礼物颜色</span>
+                <el-color-picker v-model="giftColor"></el-color-picker>
+                <el-link style="margin-left: 20px" @click.native="giftColor='#a6c0e8'">重置默认</el-link>
+            </el-row>
+            <el-link class="barrage-setting-save" icon="el-icon-check" type="primary" @click.native="saveSetting">
+                保存到本地
+            </el-link>
+        </el-drawer>
     </div>
 </template>
 
 <script>
     const cp = require('child_process')
     import noface from '../assets/noface.jpg'
+    import guard3 from '../assets/icon-guard3.png'
+    import guard2 from '../assets/icon-guard2.png'
 
     export default {
         name: "Barrage",
@@ -66,6 +123,13 @@
                 boxHeight: 600,
                 throughFlag: false,
                 clientHeight: 0,
+                clientWidth: 0,
+                posX: 0,
+                posY: 0,
+                bColor: 'rgba(0,0,0, 0.5)',
+                uNameColor: '#a6c0e8',
+                bMessageColor: '#ffffff',
+                giftColor: '#a6c0e8',
                 joinRange: [200, 260],
                 dividerHeight: 6,
                 avatar: noface,
@@ -102,11 +166,72 @@
                 bScrollCd: false,
                 jScrollHide: true,
                 jScrollCd: false,
+                guardLevel: {
+                    2: guard2,
+                    3: guard3
+                },
+                settingVisible: false,
+                medalVisible: false,
+                effectFlag: true,
+                joinShow: false
+            }
+        },
+        watch: {
+            medalVisible(val) {
+                for (let elem of document.getElementsByClassName('barrage-medal')) {
+                    elem.setAttribute('class', val ? 'barrage-medal' : 'barrage-medal hide')
+                }
+                if (this.bScrollHide) {
+                    document.getElementById('barrage').scrollTop = document.getElementById('barrage').scrollHeight
+                }
+            },
+            joinShow(val) {
+                if (val) {
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36) - this.dividerHeight - 200
+                } else {
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
+                }
+            },
+            uNameColor(val) {
+                for (let elem of document.getElementsByClassName('barrage-uname')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('barrage-sc-uname')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('join-uname')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('gift-uname')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+            },
+            bMessageColor(val) {
+                for (let elem of document.getElementsByClassName('barrage-message')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('barrage-sc-message')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+            },
+            giftColor(val) {
+                for (let elem of document.getElementsByClassName('gift-num')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('gift-name')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
+                for (let elem of document.getElementsByClassName('barrage-effect-gift-info')) {
+                    elem.setAttribute('style', `color: ${val}`)
+                }
             }
         },
         computed: {
+            titleWidth() {
+                return this.clientWidth - 210
+            },
             joinHeight() {
-                return this.clientHeight - this.boxHeight - this.dividerHeight
+                return this.clientHeight - (this.throughFlag ? 0 : 36) - this.boxHeight - this.dividerHeight
             },
             popTitle() {
                 return this.connected ? '断开连接' : '连接弹幕'
@@ -127,6 +252,34 @@
             }
         },
         methods: {
+            initSetting() {
+                this.clientHeight = this.$bSetting.get('clientHeight') || 0
+                this.clientWidth = this.$bSetting.get('clientWidth') || 0
+                this.posX = this.$bSetting.get('posX') || 0
+                this.posY = this.$bSetting.get('posY') || 0
+                this.medalVisible = this.$bSetting.get('medalVisible') || false
+                this.effectFlag = this.$bSetting.get('effectFlag') || false
+                this.joinShow = this.$bSetting.get('joinShow') || false
+                this.bColor = this.$bSetting.get('bColor') || 'rgba(0,0,0,0.5)'
+                this.uNameColor = this.$bSetting.get('uNameColor') || '#a6c0e8'
+                this.bMessageColor = this.$bSetting.get('bMessageColor') || '#ffffff'
+                this.giftColor = this.$bSetting.get('giftColor') || '#ffffff'
+            },
+            saveSetting() {
+                this.$bSetting.set('clientHeight', this.clientHeight)
+                this.$bSetting.set('clientWidth', this.clientWidth)
+                this.$bSetting.set('posX', this.posX)
+                this.$bSetting.set('posY', this.posY)
+                this.$bSetting.set('medalVisible', this.medalVisible)
+                this.$bSetting.set('effectFlag', this.effectFlag)
+                this.$bSetting.set('joinShow', this.joinShow)
+                this.$bSetting.set('bColor', this.bColor)
+                this.$bSetting.set('uNameColor', this.uNameColor)
+                this.$bSetting.set('bMessageColor', this.bMessageColor)
+                this.$bSetting.set('giftColor', this.giftColor)
+                this.$bSetting.save()
+                this.settingVisible = false
+            },
             handleNumber(num) {
                 if (num < 10000) {
                     return num
@@ -161,6 +314,8 @@
                     this.$ws.close()
                 } else {
                     this.dialogVisible = true
+                    this.ipcRenderer.send('click-through-off')
+                    this.ipcRenderer.send('update-ws-connect', false)
                 }
             },
             toggleOnTop() {
@@ -214,26 +369,57 @@
                     + `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
             },
             addBarrage(data) {
-                const host = `<span class="barrage-host">主播</span>`
-                const admin = `<span class="barrage-admin">房管</span>`
-                const uname = `<span class="barrage-uname">${data.uname}</span><span class="barrage-colon"></span>`
-                const message = `<span class="barrage-message">${data.message}</span>`
-                let innerHtml = ''
+                let medal = ''
+                if (data.medal && data.medal.has && !data.medal.expired) {
+                    medal += `<span class="${this.medalVisible ? 'barrage-medal' : 'barrage-medal hide'}" style="border-color: #${data.medal.borderColor}">`
+                    medal += `<span class="barrage-medal-name" style="background-image:linear-gradient(45deg, #${data.medal.color}, #${data.medal.backgroundColor});${data.medal.guardLevel > 0 ? 'padding-left:18px' : ''}">`
+                    if (data.medal.guardLevel > 0) {
+                        medal += `<img class="barrage-medal-guard" src="${this.guardLevel[data.medal.guardLevel]}"/>`
+                    }
+                    medal += `${data.medal.name}</span><span class="barrage-medal-level" style="color: #${data.medal.color}">${data.medal.level}</span>`
+                    medal += '</span>'
+                }
+                const host = `<span class="barrage-host">主</span>`
+                const admin = `<span class="barrage-admin">房</span>`
+                const uname = `<span class="barrage-uname" style="color:${this.uNameColor}">${data.uname}</span><span class="barrage-colon"></span>`
+                let innerHtml = medal
                 if (data.uid === this.roomInfo.uid)
                     innerHtml += host
                 else if (data.admin)
                     innerHtml += admin
-                innerHtml += uname + message
+                innerHtml += uname
                 const p = document.createElement('p')
                 p.setAttribute('class', 'barrage-p')
                 p.setAttribute('title', this.dateFormat(data.timeline))
                 p.innerHTML = innerHtml
+                if (data.emoticon.has) {
+                    const message = document.createElement('img')
+                    message.setAttribute('class', 'barrage-message-image')
+                    this.$api.getAvatarContentByUrl(data.emoticon.url).then(res => {
+                        message.src = res
+                    }).catch(e => {
+                        message.remove()
+                        const msg1 = document.createElement('span')
+                        msg1.setAttribute('class', 'barrage-message')
+                        msg1.setAttribute('style', `color:${this.bMessageColor}`)
+                        msg1.innerText = data.message
+                        p.appendChild(msg1)
+                    })
+                    p.appendChild(message)
+                } else {
+                    const message = document.createElement('span')
+                    message.setAttribute('class', 'barrage-message')
+                    message.setAttribute('style', `color:${this.bMessageColor}`)
+                    message.innerText = data.message
+                    p.appendChild(message)
+                }
                 document.getElementById('barrage').appendChild(p)
                 if (this.bScrollHide)
                     document.getElementById('barrage').scrollTop = document.getElementById('barrage').scrollHeight
                 this.deleteFirstItem('barrage', 50)
             },
             addSc(data) {
+                console.log('add sc')
                 const user = document.createElement('div')
                 user.setAttribute('class', 'barrage-sc-user')
                 const avatar = document.createElement('img')
@@ -241,7 +427,17 @@
                 user.appendChild(avatar)
                 const uname = document.createElement('span')
                 uname.setAttribute('class', 'barrage-sc-uname')
-                uname.innerText = data.uname
+                uname.setAttribute('style', `color:${this.uNameColor}`)
+                if (data.medal.has && !data.medal.expired) {
+                    let medal = `<span class="${this.medalVisible ? 'barrage-medal' : 'barrage-medal hide'}" style="border-color: #${data.medal.borderColor}">`
+                    medal += `<span class="barrage-medal-name" style="background-image:linear-gradient(45deg, ${data.medal.color}, #${data.medal.backgroundColor});${data.medal.guardLevel > 0 ? 'padding-left:18px' : ''}">`
+                    if (data.medal.guardLevel > 0) {
+                        medal += `<img class="barrage-medal-guard" src="${this.guardLevel[data.medal.guardLevel]}"/>`
+                    }
+                    medal += `${data.medal.name}</span><span class="barrage-medal-level" style="color: ${data.medal.color}">${data.medal.level}</span></span>`
+                    uname.innerHTML = medal + data.uname
+                } else
+                    uname.innerText = data.uname
                 user.appendChild(uname)
                 const price = document.createElement('span')
                 price.setAttribute('class', 'barrage-sc-price')
@@ -252,12 +448,13 @@
                 sc.appendChild(user)
                 const p = document.createElement('p')
                 p.setAttribute('class', 'barrage-sc-message')
+                p.setAttribute('style', `color:${this.bMessageColor}`)
                 p.innerText = data.message
                 sc.appendChild(p)
                 this.$api.getAvatarContentByUrl(data.face).then((res) => {
                     avatar.src = res
                 }).catch(e => {
-                    console.log(e)
+                    avatar.src = noface
                 })
                 document.getElementById('barrage').appendChild(sc)
                 if (this.bScrollHide)
@@ -286,7 +483,7 @@
                 }, 2000)
             },
             addJoin(data) {
-                const uname = `<span class="join-uname">${data.uname}</span>`
+                const uname = `<span class="join-uname" style="color:${this.uNameColor}">${data.uname}</span>`
                 const innerHtml = '欢迎 ' + uname + ' 进入直播间'
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
@@ -298,8 +495,8 @@
                 this.deleteFirstItem('join', 20)
             },
             addGift(data) {
-                const uname = `<span class="gift-uname">${data.uname}</span>`
-                const innerHtml = uname + ` ${data.action}了 <span class="gift-num">${data.num}</span> 个 <span class="gift-name">${data.giftName}</span>`
+                const uname = `<span class="gift-uname" style="color:${this.uNameColor}">${data.uname}</span>`
+                const innerHtml = uname + ` ${data.action}了 <span class="gift-name" style="color:${this.giftColor}">${data.giftName}</span> x <span class="gift-num" style="color:${this.giftColor}">${data.num}</span>`
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
                 p.setAttribute('title', this.dateFormat(data.timeline))
@@ -308,8 +505,46 @@
                 if (this.jScrollHide)
                     document.getElementById('join').scrollTop = document.getElementById('join').scrollHeight
                 this.deleteFirstItem('join', 20)
+                if (this.joinShow) return
+                const item = document.createElement('div')
+                item.setAttribute('class', 'barrage-effect-item')
+                const avatarBox = document.createElement('div')
+                avatarBox.setAttribute('class', 'barrage-effect-gift-avatar')
+                const avatar = document.createElement('img')
+                if (data.face) {
+                    this.$api.getAvatarContentByUrl(data.face).then(res => {
+                        avatar.src = res
+                    }).catch(e => {
+                        avatar.src = noface
+                    })
+                } else {
+                    this.$api.getAvatarContentByUid(data.uid).then(res => {
+                        avatar.src = res
+                    }).catch(e => {
+                        avatar.src = noface
+                    })
+                }
+                avatarBox.appendChild(avatar)
+                item.appendChild(avatarBox)
+                const giftBox = document.createElement('div')
+                giftBox.setAttribute('class', 'barrage-effect-gift-info')
+                giftBox.setAttribute('style', `background: ${this.giftColor};box-shadow: 0 0 1em 2px ${this.giftColor};`)
+                const giftName = document.createElement('span')
+                giftName.setAttribute('class', 'barrage-effect-gift-uname')
+                giftName.innerText = data.uname
+                giftBox.appendChild(giftName)
+                const gift = document.createElement('span')
+                gift.setAttribute('class', 'barrage-effect-gift')
+                gift.innerHTML = `<span class="barrage-effect-gift-name">${data.giftName}</span> x <span class="barrage-effect-gift-num">${data.num}</span>`
+                giftBox.appendChild(gift)
+                item.appendChild(giftBox)
+                document.getElementById('effect').appendChild(item)
+                setTimeout(() => {
+                    item.remove()
+                }, 5000)
             },
             addEffect(data) {
+                // join area
                 let message = String(data.message).replace('<%', ' <span class="join-uname">')
                 message = message.replace('%>', '</span> ')
                 const p = document.createElement('p')
@@ -320,6 +555,32 @@
                 if (this.jScrollHide)
                     document.getElementById('join').scrollTop = document.getElementById('join').scrollHeight
                 this.deleteFirstItem('join', 20)
+                if (!this.effectFlag) return
+                // effect area
+                const item = document.createElement('div')
+                item.setAttribute('class', 'barrage-effect-item')
+                const back = document.createElement('img')
+                back.setAttribute('class', 'barrage-effect-background')
+                this.$api.getAvatarContentByUrl(data.mapUrl).then(res => {
+                    back.src = res
+                })
+                item.appendChild(back)
+                const avatar = document.createElement('img')
+                avatar.setAttribute('class', 'barrage-effect-avatar')
+                this.$api.getAvatarContentByUrl(data.face).then(res => {
+                    avatar.src = res
+                })
+                item.appendChild(avatar)
+                const msg = document.createElement('span')
+                msg.setAttribute('class', 'barrage-effect-message')
+                msg.setAttribute('style', `color: ${data.color}`)
+                const message1 = data.message.replace('<%', `<span style="color: ${data.highlightColor}">`)
+                msg.innerHTML = message1.replace('%>', '</span>')
+                item.appendChild(msg)
+                setTimeout(() => {
+                    item.remove()
+                }, (data.duration + 1) * 1000)
+                document.getElementById('effect').appendChild(item)
             },
             handleJoinWheel() {
                 this.jScrollHide = false
@@ -412,6 +673,7 @@
             emptyBarrageAndJoin() {
                 document.getElementById('barrage').innerHTML = ''
                 document.getElementById('join').innerHTML = ''
+                document.getElementById('effect').innerHTML = ''
             }
         },
         created() {
@@ -419,14 +681,31 @@
             this.initCache()
             this.ipcRenderer.on('resize', (e, size) => {
                 this.clientHeight = size.height
-                const joinHeight = this.clientHeight - this.boxHeight - this.dividerHeight
-                if (joinHeight < this.joinRange[0]) {
-                    this.boxHeight = this.clientHeight - this.joinRange[0] - this.dividerHeight
-                } else if (joinHeight > this.joinRange[1]) {
-                    this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight
+                if (!this_.joinShow) {
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
+                } else {
+                    const joinHeight = this.clientHeight - this.boxHeight - this.dividerHeight
+                    if (joinHeight < this.joinRange[0]) {
+                        this.boxHeight = this.clientHeight - this.joinRange[0] - this.dividerHeight
+                    } else if (joinHeight > this.joinRange[1]) {
+                        this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight
+                    }
                 }
+                this.clientWidth = size.width
             })
-            this.ipcRenderer.send('get-size')
+            this.ipcRenderer.on('move', (e, pos) => {
+                this.posX = pos.x
+                this.posY = pos.y
+            })
+            this.initSetting()
+            if (this.clientHeight === 0 || this.clientWidth === 0)
+                this.ipcRenderer.send('get-size')
+            else
+                this.ipcRenderer.send('update-size', [this.clientWidth, this.clientHeight])
+            if (this.posX === 0 || this.posY === 0)
+                this.ipcRenderer.send('get-pos')
+            else
+                this.ipcRenderer.send('update-pos', [this.posX, this.posY])
             this.ipcRenderer.on('updateUserInfo', (e, uInfo) => {
                 if (!uInfo) return
                 this_.userInfo = uInfo
@@ -462,13 +741,25 @@
             if (!this.$ws.connected) {
                 this.ipcRenderer.send('update-ws-connect', false)
             }
+            this.$nextTick(() => {
+                // const data = {
+                //     uid: 0,
+                //     uname: 'userName',
+                //     action: '送出',
+                //     giftName: '小心心',
+                //     num: '24',
+                //     timestamp: 1652321000,
+                //     timeline: new Date(1652321000 * 1000)
+                // }
+                //
+                // this_.addGift(data)
+            })
         }
     }
 </script>
 
 <style scoped>
     .barrage-container {
-        background: rgba(0, 0, 0, 0.55);
         height: 100%;
         width: 100%;
         position: relative;
@@ -563,10 +854,12 @@
 
     .barrage-box {
         width: 100%;
+        position: absolute;
         box-sizing: border-box;
         overflow-x: hidden;
         overflow-y: auto;
         padding-top: 10px;
+        z-index: 10;
     }
 
     .barrage-divider {
@@ -609,7 +902,7 @@
     .live-title {
         vertical-align: top;
         display: inline-block;
-        width: 190px;
+        /*width: 190px;*/
         height: 36px;
         line-height: 36px;
         text-overflow: ellipsis;
@@ -629,10 +922,11 @@
     >>> .barrage-p {
         font-family: "Microsoft YaHei", sans-serif;
         font-size: 14px;
-        margin: 0 10px 15px 10px;
+        margin: 0 10px 0px 10px;
         padding: 5px;
         /*box-shadow: 0 8px 10px -8px #a6c0e8;*/
         border-radius: 6px;
+        line-height: 30px;
     }
 
     >>> .barrage-p:hover {
@@ -644,7 +938,7 @@
         font-weight: bold;
         color: white;
         margin-right: 5px;
-        padding: 0 5px;
+        padding: 0 4px;
         font-size: 12px;
     }
 
@@ -653,8 +947,41 @@
         font-weight: bold;
         color: white;
         margin-right: 5px;
-        padding: 0 5px;
+        padding: 0 4px;
         font-size: 12px;
+    }
+
+    >>> .barrage-medal {
+        font-size: 12px;
+        margin-right: 5px;
+        color: white;
+        border-width: 1px;
+        border-style: solid;
+        position: relative;
+    }
+
+    >>> .hide {
+        display: none;
+    }
+
+    >>> .barrage-medal-guard {
+        height: 28px;
+        width: 28px;
+        position: absolute;
+        left: -10px;
+        top: -8px;
+    }
+
+    >>> .barrage-medal-name {
+        font-weight: bold;
+        padding: 0 4px;
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
+    }
+
+    >>> .barrage-medal-level {
+        padding: 0 2px;
+        background-color: white;
     }
 
     >>> .barrage-uname {
@@ -669,6 +996,10 @@
 
     >>> .barrage-message {
         color: white;
+    }
+
+    >>> .barrage-message-image {
+        height: 32px;
     }
 
     >>> .barrage-sc {
@@ -694,6 +1025,7 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
+        margin-right: 12px;
     }
 
     >>> .barrage-sc-uname {
@@ -701,7 +1033,6 @@
         line-height: 36px;
         vertical-align: top;
         color: #a6c0e8;
-        margin-left: 5px;
     }
 
     >>> .barrage-sc-price {
@@ -751,5 +1082,171 @@
 
     .scroll-hide::-webkit-scrollbar {
         width: 0 !important
+    }
+
+    .barrage-setting {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .barrage-setting >>> .el-drawer {
+        box-shadow: inset 0 0 2em 0 black;
+    }
+
+    .barrage-setting >>> .el-drawer__header {
+        /*text-align: center;*/
+        margin: 0;
+        padding: 10px 10px 5px 20px;
+        box-shadow: 0 15px 10px -15px black;
+    }
+
+    .barrage-setting >>> .el-drawer__body {
+        position: relative;
+        padding: 15px;
+    }
+
+    .barrage-setting-row {
+        line-height: 24px;
+        padding: 0 6px;
+        margin-bottom: 12px;
+    }
+
+    .barrage-setting-label {
+        margin-right: 5px;
+        width: 80px;
+        display: inline-block;
+    }
+
+    .barrage-setting-label:after {
+        content: " : ";
+    }
+
+    .barrage-setting-save {
+        position: absolute;
+        right: 30px;
+        bottom: 30px;
+    }
+
+    .barrage-effect {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        background-repeat: repeat;
+        position: relative;
+    }
+
+    .barrage-effect-box {
+        display: inline-block;
+        vertical-align: bottom;
+        width: 100%;
+        position: absolute;
+        bottom: 0;
+    }
+
+    >>> .barrage-effect-item {
+        width: 360px;
+        height: 70px;
+        float: right;
+        position: relative;
+        right: -50px;
+        animation-duration: 0.6s;
+        animation-name: slidein;
+        animation-timing-function: ease-out;
+        overflow: hidden;
+    }
+
+    >>> .barrage-effect-background {
+        width: 360px;
+        height: 80px;
+        position: absolute;
+        bottom: 0;
+        z-index: 20;
+    }
+
+    @keyframes slidein {
+        from {
+            right: -360px;
+        }
+
+        to {
+            right: -50px;
+        }
+    }
+
+    >>> .barrage-effect-avatar {
+        width: 36px;
+        height: 36px;
+        position: absolute;
+        border-radius: 50%;
+        left: 14px;
+        top: 18px;
+        z-index: 30;
+    }
+
+    >>> .barrage-effect-message {
+        line-height: 36px;
+        height: 36px;
+        position: absolute;
+        display: inline-block;
+        top: 20px;
+        left: 60px;
+        z-index: 30;
+    }
+
+    >>> .barrage-effect-gift-avatar {
+        height: 40px;
+        width: 40px;
+        box-sizing: border-box;
+        position: absolute;
+        right: 60px;
+        top: 15px;
+        background-repeat: repeat;
+        /*box-shadow: 0 0 2em 0 red;*/
+        border-radius: 0 50% 50% 0;
+        z-index: 30;
+    }
+
+    >>> .barrage-effect-gift-avatar img {
+        height: 40px;
+        width: 40px;
+        border-radius: 50%;
+    }
+
+    >>> .barrage-effect-gift-info {
+        position: absolute;
+        right: 60px;
+        top: 15px;
+        box-sizing: border-box;
+        padding: 0 48px 0 8px;
+        text-align: right;
+        color: white;
+        background: #a6c0e8;
+        box-shadow: 0 0 1em 2px #a6c0e8;
+        border-radius: 20px 20px 20px 20px;
+        z-index: 20;
+    }
+
+    >>> .barrage-effect-gift-uname {
+        /*color: #a6c0e8;*/
+        display: block;
+        line-height: 20px;
+        font-size: 12px;
+        padding-left: 8px;
+    }
+
+    >>> .barrage-effect-gift {
+        display: block;
+        line-height: 20px;
+        padding-left: 8px;
+        font-size: 14px;
+    }
+
+    >>> .barrage-effect-gift-name {
+        /*color: #a6c0e8;*/
+    }
+
+    >>> .barrage-effect-gift-num {
+        text-decoration: underline;
+        /*color: #a6c0e8;*/
     }
 </style>

@@ -52,4 +52,8 @@
         background-color: #555;
     }
 
+    .v-modal {
+        border-radius: 8px;
+        overflow: hidden;
+    }
 </style>

@@ -175,9 +175,9 @@
         },
         methods: {
             initConfig() {
-                this.uid = this.$setting.get('uid')
-                this.token = this.$setting.get('token')
-                this.cookie = this.$setting.get('cookie')
+                this.uid = this.$token.get('uid')
+                this.token = this.$token.get('token')
+                this.cookie = this.$token.get('cookie')
                 this.ipcRenderer.send('save-setting', {
                     uid: this.uid, token: this.token, cookie: this.cookie
                 })
@@ -412,10 +412,10 @@
                 })
             },
             saveSetting() {
-                this.$setting.set('uid', this.settingForm.uid)
-                this.$setting.set('token', this.settingForm.token)
-                this.$setting.set('cookie', this.settingForm.cookie)
-                this.$setting.save()
+                this.$token.set('uid', this.settingForm.uid)
+                this.$token.set('token', this.settingForm.token)
+                this.$token.set('cookie', this.settingForm.cookie)
+                this.$token.save()
                 this.initConfig()
                 this.settingVisible = false
                 this.getUserInfo()

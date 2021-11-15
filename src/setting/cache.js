@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs')
+const osHomedir = require('os-homedir');
 
 export const Cache = {}
 
@@ -11,7 +12,7 @@ let cache = {
 
 export function initCache() {
 
-    const resource = path.join('resources')
+    const resource = path.join(osHomedir(), 'Documents', 'Bilive Manager')
     if (!fs.existsSync(resource))
         fs.mkdirSync(resource)
 

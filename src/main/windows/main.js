@@ -24,7 +24,8 @@ export const main = {
             resizable: false,
             frame: false,
             transparent: true,
-            icon: live
+            icon: live,
+            maximizable: false
         })
 
         let mainWindow = main.mainWindow

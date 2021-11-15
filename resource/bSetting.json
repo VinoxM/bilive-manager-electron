@@ -1,0 +1,13 @@
+{
+    "clientHeight": 500,
+    "clientWidth": 360,
+    "posX": 2193,
+    "posY": 161,
+    "medalVisible": false,
+    "effectFlag": false,
+    "joinShow": false,
+    "bColor": "rgba(0,0,0,0.5)",
+    "uNameColor": "#a6c0e8",
+    "bMessageColor": "#ffffff",
+    "giftColor": "#ffffff"
+}

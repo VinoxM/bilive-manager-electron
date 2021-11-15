@@ -28,7 +28,7 @@ export class BiliSocket {
                 .catch(err => {
                     this.event.emit('err', err)
                 });
-            console.log(packet)
+            // console.log(packet)
             switch (packet.op) {
                 case 8:
                     ws.send(encode.heartbeat())
@@ -39,7 +39,7 @@ export class BiliSocket {
                 case 5:
                     packet.body.forEach((body) => {
                         let timestamp = 0
-                        console.log(body)
+                        // console.log(body)
                         switch (body['cmd']) {
                             case 'DANMU_MSG':
                                 this.event.emit('message', {
@@ -48,12 +48,30 @@ export class BiliSocket {
                                     message: body.info[1],
                                     timestamp: body.info[9]['ts'],
                                     timeline: new Date(body.info[9]['ts'] * 1000),
-                                    admin: body.info[2][2]
+                                    admin: body.info[2][2],
+                                    medal: {
+                                        has: body.info[3].length > 0,
+                                        expired: body.info[3].length > 0 && body.info[3][11] === 0,
+                                        name: body.info[3][1] || '',
+                                        level: body.info[3][0] || '',
+                                        borderColor: parseInt(body.info[3][7]).toString(16).padStart(6, '0') || '',
+                                        backgroundColor: parseInt(body.info[3][9]).toString(16).padStart(6, '0') || '',
+                                        color: parseInt(body.info[3][8]).toString(16).padStart(6, '0') || '',
+                                        guardLevel: body.info[3][10] || 0
+                                    },
+                                    emoticon: {
+                                        has: body.info[0][13] !== '{}',
+                                        url: body.info[0][13].url || '',
+                                        height: body.info[0][13].height || 0,
+                                        width: body.info[0][13].width || 0
+                                    }
                                 })
+                                console.log(body)
                                 break;
                             case 'SEND_GIFT':
                                 this.event.emit('gift', {
                                     uid: body.data.uid,
+                                    face: body.data.face,
                                     uname: body.data.uname,
                                     action: body.data.action,
                                     giftName: body.data.giftName,
@@ -66,6 +84,7 @@ export class BiliSocket {
                                 timestamp = String(body.data.combo_id).split(":").pop()
                                 this.event.emit('gift', {
                                     uid: body.data.uid,
+                                    face: body.data.face,
                                     uname: body.data.uname,
                                     action: body.data.action,
                                     giftName: body.data.gift_name,
@@ -73,9 +92,10 @@ export class BiliSocket {
                                     timestamp: timestamp,
                                     timeline: new Date(timestamp * 1000)
                                 })
+                                console.log(body)
                                 break;
                             case "LIVE_INTERACTIVE_GAME":
-                                this.event.emit('gift', {
+                                this.event.emit('gift1', {
                                     uid: body.data.uid,
                                     uname: body.data.uname,
                                     action: body.data.action || '送出',
@@ -98,12 +118,14 @@ export class BiliSocket {
                                 timestamp = parseInt(String(body.data.trigger_time).substr(0, 10))
                                 this.event.emit('effect', {
                                     uid: body.data.uid,
-                                    map_url: body.data.basemap_url,
+                                    mapUrl: body.data.basemap_url,
                                     message: body.data.copy_writing,
                                     duration: body.data.effective_time,
                                     face: body.data.face,
+                                    color: body.data['copy_color'],
+                                    highlightColor: body.data['highlight_color'],
                                     timestamp,
-                                    timeline: new Date(timestamp * 1000)
+                                    timeline: new Date(timestamp * 1000),
                                 })
                                 break;
                             case 'SUPER_CHAT_MESSAGE_JPN':
@@ -115,7 +137,17 @@ export class BiliSocket {
                                     price: body.data.price,
                                     time: body.data.time,
                                     timestamp: body.data.ts,
-                                    timeline: new Date(body.data.ts * 1000)
+                                    timeline: new Date(body.data.ts * 1000),
+                                    medal: {
+                                        has: body.data['medal_info'] && body.data['medal_info']['anchor_roomid'],
+                                        expired: !body.data['medal_info']['is_lighted'],
+                                        name: body.data['medal_info']['medal_name'],
+                                        level: body.data['medal_info']['medal_level'],
+                                        borderColor: parseInt(body.data['medal_info']['medal_color_border']).toString(16).padStart(6, '0'),
+                                        backgroundColor: parseInt(body.data['medal_info']['medal_color_end']).toString(16).padStart(6, '0'),
+                                        color: body.data['medal_info']['medal_color'],
+                                        guardLevel: body.data['medal_info']['guard_level']
+                                    }
                                 })
                                 break;
                             case 'LIVE':
@@ -127,6 +159,35 @@ export class BiliSocket {
                             case 'ROOM_CHANGE':
                                 this.event.emit('change', body.data)
                                 break;
+
+                            /*天选之人*/
+                            case 'ANCHOR_LOT_START':
+                                break
+                            case 'ANCHOR_LOT_END':
+                                break
+                            case 'ANCHOR_LOT_AWARD':
+                                break
+
+                            /*舰长类*/
+                            case 'GUARD_BUY':
+                                // 'guardBuy'
+                                break
+                            case 'USER_TOAST_MSG':
+                                break
+                            case 'NOTICE_MSG':
+                                break
+
+                            /*小时榜变动*/
+                            case 'ACTIVITY_BANNER_UPDATE_V2':
+                                break
+
+                            /*粉丝关注变化*/
+                            case 'ROOM_REAL_TIME_MESSAGE_UPDATE':
+                                console.log(body)
+                                break
+                            default:
+                                console.log(body)
+                                break
                         }
                     })
                     break;

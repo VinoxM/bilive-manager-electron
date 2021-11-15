@@ -149,6 +149,7 @@ export default {
         if (res.code === 0) {
             const result = []
             const data = res.data['room']
+            console.log(data)
             for (const elem of data) {
                 result.push({
                     uid: elem.uid,
@@ -156,7 +157,23 @@ export default {
                     message: elem.text,
                     timestamp: elem['check_info']['ts'],
                     timeline: new Date(elem['check_info']['ts'] * 1000),
-                    admin: elem['isadmin']
+                    admin: elem['isadmin'],
+                    medal: {
+                        has: elem.medal.length > 0,
+                        expired: elem.medal.length > 0 && elem.medal[11] === 0,
+                        name: elem.medal[1] || '',
+                        level: elem.medal[0] || '',
+                        borderColor: parseInt(elem.medal[7]).toString(16).padStart(6, '0') || '',
+                        backgroundColor: parseInt(elem.medal[9]).toString(16).padStart(6, '0') || '',
+                        color: parseInt(elem.medal[8]).toString(16).padStart(6, '0') || '',
+                        guardLevel: elem.medal[10] || 0
+                    },
+                    emoticon: {
+                        has: elem.emoticon && elem.emoticon.url !== '',
+                        url: elem.emoticon.url || '',
+                        height: elem.emoticon.height || 0,
+                        width: elem.emoticon.width || 0,
+                    }
                 })
             }
             return result

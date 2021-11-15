@@ -29,6 +29,12 @@ export function createWindows() {
         barrage.barrageWindow.webContents.send('toggleClickThrough', true)
     })
 
+    ipcMain.on('click-through-off', () => {
+        barrage.barrageWindow.setIgnoreMouseEvents(false)
+        systemTray.menu.getMenuItemById('clickThrough').checked = false
+        barrage.barrageWindow.webContents.send('toggleClickThrough', false)
+    })
+
     ipcMain.on('save-user-info', (e, uInfo) => {
         userInfo = uInfo
         systemTray.menu.getMenuItemById('live').enabled = userInfo.uid !== 0
