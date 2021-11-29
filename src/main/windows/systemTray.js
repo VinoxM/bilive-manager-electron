@@ -71,11 +71,10 @@ export const systemTray = {
             },
             {type: 'separator'},
             {
-                label: '最小化到托盘',
-                type: 'checkbox',
-                checked: true,
-                click: (e) => {
-                    main.mainWindow.webContents.send('toggleMinToTray', e.checked)
+                label: '检查更新',
+                type: 'normal',
+                click: () => {
+                    main.mainWindow.webContents.send('checkUpdate')
                 }
             },
             {

@@ -1,5 +1,5 @@
 import {app} from 'electron'
-import {createWindows} from "./windows";
+import {createWindows, windows} from "./windows";
 
 /**
  * Set `__static` path to static files in production
@@ -22,6 +22,19 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
     createWindows()
 })
+
+const shouldQuit = app.makeSingleInstance((commandLine, workingDirectory) => {
+    const mainWindow = windows.main.mainWindow
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        if (!mainWindow.isVisible()) mainWindow.show()
+        mainWindow.focus()
+    }
+})
+
+if (shouldQuit) {
+    app.quit()
+}
 
 /**
  * Auto Updater

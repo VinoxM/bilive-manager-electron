@@ -11,7 +11,10 @@ import api from "../api";
 import {initUToken, uToken} from "../setting/token";
 import {initCache, Cache} from "../setting/cache";
 import {BSetting, initBSetting} from "../setting/barrage";
+import {MSetting, initMSetting} from "../setting/main";
 import {BiliSocket} from '../sokects/bilive'
+
+const version = 'v1.0.2'
 
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 Vue.config.productionTip = false
@@ -22,6 +25,8 @@ Vue.prototype.$api = api
 Vue.prototype.$token = uToken
 Vue.prototype.$cache = Cache
 Vue.prototype.$bSetting = BSetting
+Vue.prototype.$mSetting = MSetting
+Vue.prototype.$version = version
 
 // 禁用快捷键
 // preventForceRefreshAndTool()
@@ -29,11 +34,14 @@ Vue.prototype.$bSetting = BSetting
 initBSetting()
 initCache()
 initUToken()
+initMSetting()
 
 // 组件注册
 import Header from "./components/tools/Header";
+
 Vue.component('header-box', Header)
 import HeaderLog from "./components/tools/HeaderLog";
+
 Vue.component('header-log', HeaderLog)
 
 /* eslint-disable no-new */

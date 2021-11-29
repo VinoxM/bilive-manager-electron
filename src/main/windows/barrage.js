@@ -30,7 +30,7 @@ export const barrage = {
         barrageWindow.loadURL(winURL)
 
         barrageWindow.on('closed', () => {
-            barrageWindow = null
+            barrage.barrageWindow = null
         })
 
         barrageWindow.hide()
@@ -55,12 +55,12 @@ export const barrage = {
             barrageWindow.webContents.send('move', {x: pos[0], y: pos[1]})
         })
 
-        ipcMain.on('update-size', (e, size)=>{
-            barrageWindow.setSize(size[0],size[1])
+        ipcMain.on('update-size', (e, size) => {
+            barrageWindow.setSize(size[0], size[1])
         })
 
-        ipcMain.on('update-pos', (e, pos)=>{
-            barrageWindow.setPosition(pos[0],pos[1])
+        ipcMain.on('update-pos', (e, pos) => {
+            barrageWindow.setPosition(pos[0], pos[1])
         })
     }
 }

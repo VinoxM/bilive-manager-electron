@@ -26,7 +26,7 @@ export const answer = {
         answerWindow.loadURL(winURL)
 
         answerWindow.on('closed', () => {
-            answerWindow = null
+            answer.answerWindow = null
         })
 
         answerWindow.hide()

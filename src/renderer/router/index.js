@@ -21,6 +21,11 @@ export default new Router({
       component: require('@/components/Answer').default
     },
     {
+      path: '/close',
+      name: 'close',
+      component: require('@/components/Close').default
+    },
+    {
       path: '*',
       redirect: '/'
     }

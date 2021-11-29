@@ -20,7 +20,7 @@
                     </el-row>
                     <el-row class="user-info-item">
                         <el-link icon="el-icon-refresh" @click="refreshInfo">刷新</el-link>
-                        <el-link icon="el-icon-setting" @click="infoSetting">配置</el-link>
+                        <el-link icon="el-icon-setting" @click="infoSetting">设置</el-link>
                         <el-link icon="el-icon-chat-dot-round" @click="toggleBarrageWindow">弹幕</el-link>
                     </el-row>
                 </div>
@@ -70,6 +70,12 @@
 
         <header-log top="30" ref="logs"></header-log>
 
+        <div class="main-download-box" v-if="downloadVisible">
+            <span class="main-download-title">{{downloadTitle}}</span>
+            <span class="main-download-process">{{handleSize(downloadSize)}}/{{handleSize(downloadTotalSize)}}</span>
+            <el-progress :percentage="downloadPercent" text-inside :show-text="false" :stroke-width="20" :status="downloadStatus"></el-progress>
+        </div>
+
         <el-dialog :visible.sync="dialogVisible" fullscreen :title="editTitle?'修改直播标题':'修改直播区域'" center
                    @closed="dialogClosed">
             <el-input v-if="editTitle" class="live-info-input" v-model="titleTemp"></el-input>
@@ -90,25 +96,66 @@
             </div>
         </el-dialog>
 
-        <el-dialog :visible.sync="settingVisible" fullscreen title="配置" center @closed="initSettingForm">
-            <div class="setting-item">
-                <span class="setting-item-label">Uid</span>
-                <el-input class="setting-item-input" v-model="settingForm.uid"></el-input>
+        <el-drawer :visible.sync="settingVisible" direction="btt" size="360px" :with-header="false" center
+                   @closed="initSettingForm"
+                   class="main-setting-box">
+            <el-tabs v-model="activeTab" type="border-card" :stretch="true">
+                <el-tab-pane label="用户信息" name="user">
+                    <div class="setting-item">
+                        <span class="setting-item-label">Uid</span>
+                        <el-input class="setting-item-input" v-model="settingForm.uid"></el-input>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-item-label">Token/Csrf</span>
+                        <el-input type="textarea" class="setting-item-input" :rows="2" resize="none"
+                                  v-model="settingForm.token"></el-input>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-item-label">Cookie</span>
+                        <el-input type="textarea" class="setting-item-input" :rows="5" resize="none"
+                                  v-model="settingForm.cookie"></el-input>
+                    </div>
+                </el-tab-pane>
+                <el-tab-pane label="其他设置" name="setting">
+                    <div class="setting-item">
+                        <el-checkbox v-model="settingMain.liveToConnect" label="开播自动连接到自己直播间"></el-checkbox>
+                    </div>
+                    <div class="setting-item">
+                        <el-checkbox v-model="settingMain.liveToDisconnect" label="下播自动断开自己直播间连接"></el-checkbox>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="setting-item">
+                        <el-checkbox v-model="settingMain.runForUpdate" label="启动检查更新"></el-checkbox>
+                    </div>
+                    <div class="setting-item" v-if="settingMain.runForUpdate">
+                        <span class="setting-item-label">更新源</span><br>
+                        <el-radio-group v-model="settingMain.updateSource" size="small">
+                            <el-radio label="github">Github(国外)</el-radio>
+                            <el-radio label="gitee">Gitee(国内)</el-radio>
+                        </el-radio-group>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="setting-item">
+                        <span class="setting-item-label" style="width: 60px">关闭动作</span><br>
+                        <el-radio-group v-model="settingMain.closeAction" size="small">
+                            <el-radio label="toClose">退出程序</el-radio>
+                            <el-radio label="toTray">最小化到托盘</el-radio>
+                        </el-radio-group>
+                    </div>
+                    <div class="setting-item">
+                        <el-checkbox v-model="settingMain.dontAskMe" label="关闭时不再询问"></el-checkbox>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+            <div class="main-setting-footer">
+                <el-link class="main-setting-checkbox" icon="el-icon-close" style="margin-right: 15px" type="danger"
+                         @click.native="closeSetting">取消
+                </el-link>
+                <el-link class="main-setting-checkbox" icon="el-icon-check" type="primary" @click.native="saveSetting">
+                    保存
+                </el-link>
             </div>
-            <div class="setting-item">
-                <span class="setting-item-label">Token/Csrf</span>
-                <el-input type="textarea" class="setting-item-input" :rows="2" resize="none"
-                          v-model="settingForm.token"></el-input>
-            </div>
-            <div class="setting-item">
-                <span class="setting-item-label">Cookie</span>
-                <el-input type="textarea" class="setting-item-input" :rows="5" resize="none"
-                          v-model="settingForm.cookie"></el-input>
-            </div>
-            <div slot="footer">
-                <el-link icon="el-icon-check" @click="saveSetting">保存</el-link>
-            </div>
-        </el-dialog>
+        </el-drawer>
     </div>
 </template>
 
@@ -165,7 +212,22 @@
                     token: '',
                     cookie: ''
                 },
-                minToTay: true
+                minToTay: true,
+                activeTab: 'user',
+                settingMain: {
+                    dontAskMe: false,
+                    closeAction: 'toClose',
+                    liveToConnect: true,
+                    liveToDisconnect: true,
+                    runForUpdate: true,
+                    updateSource: 'gitee'
+                },
+                downloadVisible: false,
+                downloadTitle: '正在下载更新...',
+                downloadStatus: '',
+                downloadPercent: 0,
+                downloadSize: 0,
+                downloadTotalSize: 0
             }
         },
         computed: {
@@ -182,11 +244,36 @@
                     uid: this.uid, token: this.token, cookie: this.cookie
                 })
             },
+            initConfigMain() {
+                this.settingMain.dontAskMe = this.$mSetting.get('dontAskMe') || false
+                this.settingMain.closeAction = this.$mSetting.get('closeAction') || "toClose"
+                this.settingMain.liveToConnect = this.$mSetting.get('liveToConnect') || false
+                this.settingMain.liveToDisconnect = this.$mSetting.get('liveToDisconnect') || false
+                this.settingMain.runForUpdate = this.$mSetting.get('runForUpdate') || false
+                this.settingMain.updateSource = this.$mSetting.get('updateSource') || 'gitee'
+                this.ipcRenderer.send('save-setting-main', {
+                    closeAction: this.settingMain.closeAction,
+                    dontAskMe: this.settingMain.dontAskMe
+                })
+            },
+            saveConfigMain() {
+                this.$mSetting.set('dontAskMe', this.settingMain.dontAskMe)
+                this.$mSetting.set('closeAction', this.settingMain.closeAction)
+                this.$mSetting.set('liveToConnect', this.settingMain.liveToConnect)
+                this.$mSetting.set('liveToDisconnect', this.settingMain.liveToDisconnect)
+                this.$mSetting.set('runForUpdate', this.settingMain.runForUpdate)
+                this.$mSetting.set('updateSource', this.settingMain.updateSource)
+                this.$mSetting.save()
+                this.initConfigMain()
+            },
             windowMinimize() {
                 this.ipcRenderer.send('min-main')
             },
             windowClose() {
-                this.ipcRenderer.send('close-main', this.minToTay)
+                if (this.settingMain.dontAskMe)
+                    this.ipcRenderer.send('close-main', this.settingMain.closeAction === 'toTray')
+                else
+                    this.ipcRenderer.send('close-window-show')
             },
             handleNumber(num) {
                 if (num < 10000) {
@@ -253,6 +340,8 @@
                     this.addHeadLog(`加载失败:${e}, 请检查配置`, 1)
                     this.initUserInfo()
                     this.initLiveInfo()
+                    this.settingVisible = true
+                    this.activeTab = 'user'
                 })
                 this.ipcRenderer.send('save-user-info', this.userInfo)
                 this.userLoading = false
@@ -298,7 +387,10 @@
                     this.liveInfo.areaName = this.liveArea[this.liveInfo.areaId].label
                     this.areaIdTemp = res.areaId
                     this.titleTemp = res.title
-                    if (flag) this.ipcRenderer.send('toggle-live-status', this.liveInfo.status)
+                    if (flag) {
+                        this.ipcRenderer.send('toggle-live-status', this.liveInfo.status)
+                        if (this.liveInfo.status && this.settingMain.liveToConnect) this.ipcRenderer.send('connect-ws-self')
+                    }
                     if (this.liveInfo.status === 1) {
                         this.$api.getLiveRtmpByCookie(res.roomId, this.cookie).then(r => {
                             this.liveRtmp = r
@@ -370,6 +462,9 @@
                             await this_.$api.getLiveRtmpByCookie(this_.liveInfo.roomId, this_.cookie).then(r => {
                                 this_.liveRtmp = r
                             })
+                            if (this_.settingMain.liveToConnect) this_.ipcRenderer.send('connect-ws-self')
+                        } else {
+                            if (this_.settingMain.liveToDisconnect) this_.ipcRenderer.send('disconnect-ws-self')
                         }
                     }
                 }).catch(e => {
@@ -411,6 +506,11 @@
                     this.addHeadLog(e, 1)
                 })
             },
+            closeSetting() {
+                this.initConfig()
+                this.initConfigMain()
+                this.settingVisible = false
+            },
             saveSetting() {
                 this.$token.set('uid', this.settingForm.uid)
                 this.$token.set('token', this.settingForm.token)
@@ -419,6 +519,7 @@
                 this.initConfig()
                 this.settingVisible = false
                 this.getUserInfo()
+                this.saveConfigMain()
             },
             addHeadLog(message, isError = false) {
                 this.$refs.logs.logCountdown(message, isError)
@@ -458,17 +559,82 @@
                     this.$cache.set('liveArea', this.cacheOptions)
                     this.$cache.save()
                 }
+            },
+            checkUpdate(flag = false) {
+                let this_ = this
+                this.$api.getRelease(this.settingMain.updateSource, this.$version).then(res => {
+                    if (res.hasNew) {
+                        this_.ipcRenderer.send('download', res.downloadUrl)
+                    } else {
+                        if (flag) this_.ipcRenderer.send('no-more-updates')
+                        else this_.addHeadLog('未发现版本更新')
+                    }
+                }).catch(e => {
+                    if (flag) this_.ipcRenderer.send('check-update-fail', e)
+                    else this_.addHeadLog('检查更新失败, 请切换更新源或稍后重试', true)
+                })
+            },
+            handleSize(size) {
+                if (size < 1024) {
+                    return `${size} b`
+                } else if (size >= 1024 && size < 1024 * 1024) {
+                    return `${(size / 1024).toFixed(2)} kb`
+                } else {
+                    return `${(size / (1024 * 1024)).toFixed(2)} mb`
+                }
+            },
+            initDownload(){
+                const this_ = this
+                setTimeout(() => {
+                    this_.downloadVisible = false
+                    this_.downloadPercent = 0
+                    this_.downloadTotalSize = 0
+                    this_.downloadSize = 0
+                    this_.downloadTitle = '正在下载更新...'
+                    this_.downloadStatus = ''
+                }, 3000)
             }
         },
         created() {
             this.initConfig()
+            this.initConfigMain()
             this.getLiveArea()
             this.getUserInfo()
             this.ipcRenderer.on('toggleLiveStatus', (e) => {
                 this.toggleLiveStatus()
             })
-            this.ipcRenderer.on('toggleMinToTray', (e, flag) => {
-                this.minToTay = flag
+            if (this.settingMain.runForUpdate) {
+                this.checkUpdate()
+            }
+            this.ipcRenderer.on('updateProgressing', (e, {value, curSize, totalSize}) => {
+                this.$nextTick(() => {
+                    this.downloadVisible = true; // 开启进度弹窗
+                    this.downloadPercent = value; // 设置下载百分比
+                    this.downloadSize = curSize;
+                    this.downloadTotalSize = totalSize;
+                });
+            })
+            this.ipcRenderer.on('downloadError', () => {
+                this.downloadTitle = '下载出错'
+                this.downloadStatus = 'error'
+                this.initDownload()
+            })
+            this.ipcRenderer.on('downloadOver', (e) => {
+                this.downloadTitle = '下载完成'
+                this.downloadStatus = 'success'
+                this.initDownload()
+            })
+            this.ipcRenderer.on('checkUpdate', (e) => {
+                this.checkUpdate(true)
+            })
+            this.ipcRenderer.on('saveCloseAction', (e, {action, dontAskMe}) => {
+                this.settingMain.dontAskMe = dontAskMe
+                this.settingMain.closeAction = action
+                this.saveConfigMain()
+                this.ipcRenderer.send('close-main', this.settingMain.closeAction === 'toTray')
+            })
+            this.ipcRenderer.on('updateLiveStatus',()=>{
+                this.getLiveInfo()
             })
         }
     }
@@ -694,6 +860,7 @@
         text-align: center;
         vertical-align: top;
         line-height: 24px;
+        word-wrap: break-word;
     }
 
     .setting-item-label:after {
@@ -707,5 +874,68 @@
     >>> .el-textarea__inner {
         font-size: 14px;
         font-family: 'Microsoft YaHei', serif;
+    }
+
+    .main-setting-box >>> .el-drawer {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: inset 0 0 1em 1px black;
+        padding: 10px;
+    }
+
+    .main-setting-box >>> .el-dialog__body {
+        padding: 0 10px 10px 10px;
+    }
+
+    .main-setting-box >>> .el-tabs {
+        height: 300px;
+    }
+
+    .main-setting-footer {
+        padding: 6px 0;
+        line-height: 24px;
+        text-align: center;
+    }
+
+    .main-download-box {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        width: 100%;
+        height: 20px;
+        padding: 0 15px;
+        box-sizing: border-box;
+    }
+
+    .main-download-title {
+        display: block;
+        width: 100%;
+        text-align: left;
+        line-height: 20px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        padding: 0 22px;
+        font-size: 12px;
+        box-sizing: border-box;
+    }
+
+    .main-download-process {
+        display: block;
+        width: 100%;
+        text-align: right;
+        line-height: 20px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        padding: 0 22px;
+        font-size: 12px;
+        box-sizing: border-box;
+    }
+
+    .main-setting-box >>> .el-divider {
+        margin: 10px 0;
     }
 </style>

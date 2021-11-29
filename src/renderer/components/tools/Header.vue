@@ -49,6 +49,7 @@
         box-sizing: border-box;
         background: rgba(255, 111, 160, 0.60);
         box-shadow: 0 2px 2px 0 #afafaf;
+        z-index: 100;
         /*border-radius: 8px 8px 0 0;*/
     }
 

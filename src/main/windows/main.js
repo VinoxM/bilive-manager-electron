@@ -1,5 +1,8 @@
-import {app, BrowserWindow, ipcMain} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog, shell} from 'electron'
 import path from "path";
+
+const fs = require('fs');
+const osHomedir = require('os-homedir');
 
 const winURL = process.env.NODE_ENV === 'development'
     ? `http://localhost:9080`
@@ -33,7 +36,7 @@ export const main = {
         mainWindow.loadURL(winURL)
 
         mainWindow.on('closed', () => {
-            mainWindow = null
+            main.mainWindow = null
             app.exit()
         })
 
@@ -50,6 +53,100 @@ export const main = {
             mainWindow.minimize()
         })
 
+        const savePath = path.join(osHomedir(), 'Documents', 'Bilive Manager', 'update')
+
+        ipcMain.on('download', (e, downloadUrl) => {
+            dialog.showMessageBox({
+                type: 'info',
+                title: 'Bilive Manager 更新',
+                message: '有新版本可供下载,是否更新?',
+                buttons: ['下载', '取消'],
+                cancelId: 2
+            }, (index) => {
+                if (index === 0) {
+                    if (!fs.existsSync(savePath))
+                        fs.mkdirSync(savePath)
+                    mainWindow.webContents.downloadURL(downloadUrl); // 触发 will-download 事件
+                }
+            })
+        })
+
+        mainWindow.webContents.session.on('will-download', (e, item) => {
+            const filePath = path.join(savePath, item.getFilename());
+            let value = 0
+            item.setSavePath(filePath); // 'C:\Users\kim\Downloads\第12次.zip'
+            //监听下载过程，计算并设置进度条进度
+            item.on('updated', (evt, state) => {
+                if ('progressing' === state) {
+                    //此处  用接收到的字节数和总字节数求一个比例  就是进度百分比
+                    const curSize = item.getReceivedBytes()
+                    const totalSize = item.getTotalBytes()
+                    if (curSize && totalSize) {
+                        value = parseInt(100 * (item.getReceivedBytes() / item.getTotalBytes()))
+                    }
+                    // 把百分比发给渲染进程进行展示
+                    console.log(value, curSize, totalSize)
+                    mainWindow.webContents.send('updateProgressing', {value: value, curSize, totalSize});
+                    // mac 程序坞、windows 任务栏显示进度
+                    mainWindow.setProgressBar(value);
+                }
+            });
+            //监听下载结束事件
+            item.on('done', (e, state) => {
+                //如果窗口还在的话，去掉进度条
+                if (!mainWindow.isDestroyed()) {
+                    mainWindow.setProgressBar(-1);
+                }
+                //下载被取消或中断了
+                if (state === 'interrupted') {
+                    dialog.showErrorBox('下载失败', `文件 ${item.getFilename()} 因为某些原因被中断下载`);
+                    mainWindow.webContents.send('downloadError')
+                }
+                // 下载成功后打开文件所在文件夹
+                if (state === 'completed') {
+                    mainWindow.webContents.send('downloadOver')
+                    dialog.showMessageBox({
+                        type: 'info',
+                        title: 'Bilive Manager 更新',
+                        message: '下载已完成,是否执行?',
+                        buttons: ['执行', '取消'],
+                        cancelId: 2
+                    }, (index) => {
+                        if (index === 0) {
+                            shell.openItem(filePath)
+                        } else {
+                            shell.showItemInFolder(filePath)
+                        }
+                    })
+                }
+            });
+        });
+
+        ipcMain.on('no-more-updates', () => {
+            dialog.showMessageBox({
+                type: 'info',
+                title: 'Bilive Manager 更新',
+                message: '已经是最新版本!',
+                buttons: ['确定'],
+                cancelId: 2
+            }, () => {
+            })
+        })
+
+        ipcMain.on('check-update-fail', (e, message) => {
+            dialog.showMessageBox({
+                type: 'error',
+                title: 'Bilive Manager 更新',
+                message: `检查更新失败,请切换更新源或稍后重试!\n${message}`,
+                buttons: ['确定'],
+                cancelId: 2
+            }, () => {
+            })
+        })
+
+        ipcMain.on('update-live-status', ()=>{
+            mainWindow.webContents.send('updateLiveStatus')
+        })
         // mainWindow.openDevTools({mode: 'undocked'});
     }
 }

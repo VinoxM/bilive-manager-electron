@@ -66,7 +66,7 @@ export class BiliSocket {
                                         width: body.info[0][13].width || 0
                                     }
                                 })
-                                console.log(body)
+                                // console.log(body)
                                 break;
                             case 'SEND_GIFT':
                                 this.event.emit('gift', {
@@ -79,6 +79,7 @@ export class BiliSocket {
                                     timestamp: body.data.timestamp,
                                     timeline: new Date(body.data.timestamp * 1000)
                                 })
+                                console.log(JSON.stringify(body.data))
                                 break;
                             case 'COMBO_SEND':
                                 timestamp = String(body.data.combo_id).split(":").pop()
@@ -92,7 +93,6 @@ export class BiliSocket {
                                     timestamp: timestamp,
                                     timeline: new Date(timestamp * 1000)
                                 })
-                                console.log(body)
                                 break;
                             case "LIVE_INTERACTIVE_GAME":
                                 this.event.emit('gift1', {
@@ -127,8 +127,11 @@ export class BiliSocket {
                                     timestamp,
                                     timeline: new Date(timestamp * 1000),
                                 })
+                                // console.log(body.data)
                                 break;
+                            // case 'SUPER_CHAT_MESSAGE':
                             case 'SUPER_CHAT_MESSAGE_JPN':
+                                console.log(body.data)
                                 this.event.emit('sc', {
                                     uid: body.data.uid,
                                     uname: body.data.user_info.uname,
@@ -140,7 +143,7 @@ export class BiliSocket {
                                     timeline: new Date(body.data.ts * 1000),
                                     medal: {
                                         has: body.data['medal_info'] && body.data['medal_info']['anchor_roomid'],
-                                        expired: !body.data['medal_info']['is_lighted'],
+                                        expired: !body.data['medal_info'] || !body.data['medal_info']['is_lighted'] || 1,
                                         name: body.data['medal_info']['medal_name'],
                                         level: body.data['medal_info']['medal_level'],
                                         borderColor: parseInt(body.data['medal_info']['medal_color_border']).toString(16).padStart(6, '0'),
@@ -162,10 +165,11 @@ export class BiliSocket {
 
                             /*天选之人*/
                             case 'ANCHOR_LOT_START':
-                                break
+                            // break
                             case 'ANCHOR_LOT_END':
-                                break
+                            // break
                             case 'ANCHOR_LOT_AWARD':
+                                console.log(body.data)
                                 break
 
                             /*舰长类*/
@@ -183,10 +187,10 @@ export class BiliSocket {
 
                             /*粉丝关注变化*/
                             case 'ROOM_REAL_TIME_MESSAGE_UPDATE':
-                                console.log(body)
+                                // console.log(body)
                                 break
                             default:
-                                console.log(body)
+                                // console.log(body)
                                 break
                         }
                     })

@@ -3,11 +3,13 @@ import {main} from './main'
 import {barrage} from './barrage'
 import {answer} from './answer'
 import {systemTray} from "./systemTray";
+import {close} from "./close";
 
 let userInfo
 let roomInfo
 let connected = false
 let setting
+let settingMain
 
 export function createWindows() {
     Menu.setApplicationMenu(null)
@@ -15,6 +17,7 @@ export function createWindows() {
     barrage.createWindow()
     answer.createWindow()
     systemTray.createTray(main, barrage)
+    close.createWindow(main)
 
     globalShortcut.register('Alt+Shift+C', () => {
         if (connected && roomInfo['roomId'] !== 0) {
@@ -63,6 +66,11 @@ export function createWindows() {
         systemTray.menu.getMenuItemById('barrage').checked = false
     })
 
+    ipcMain.on('barrage-open', () => {
+        barrage.barrageWindow.show()
+        systemTray.menu.getMenuItemById('barrage').checked = true
+    })
+
     ipcMain.on('update-ws-connect', (e, flag) => {
         connected = flag
         systemTray.menu.getMenuItemById('connect').checked = flag
@@ -94,13 +102,30 @@ export function createWindows() {
         barrage.barrageWindow.webContents.send('addBarrageErr', msg)
     })
 
-    ipcMain.on('save-setting',(e, s)=>{
+    ipcMain.on('save-setting', (e, s) => {
         setting = s
         answer.answerWindow.webContents.send('updateSetting', setting)
     })
 
-    ipcMain.on('update-setting',()=>{
+    ipcMain.on('update-setting', () => {
         answer.answerWindow.webContents.send('updateSetting', setting)
+    })
+
+    ipcMain.on('save-setting-main', (e,s)=>{
+        settingMain = s
+        close.closeWindow.webContents.send('settingMainUpdate', settingMain)
+    })
+
+    ipcMain.on('update-setting-main', ()=>{
+        close.closeWindow.webContents.send('settingMainUpdate', settingMain)
+    })
+
+    ipcMain.on('connect-ws-self', () => {
+        barrage.barrageWindow.webContents.send('connectWsSelf', userInfo)
+    })
+
+    ipcMain.on('disconnect-ws-self', () => {
+        barrage.barrageWindow.webContents.send('disconnectWsSelf', userInfo)
     })
 }
 

@@ -25,7 +25,15 @@
         </div>
         <div style="height: 36px" v-if="!throughFlag"></div>
         <div class="barrage-effect" :style="{height:boxHeight+'px'}">
-            <div class="barrage-effect-box" id="effect">
+            <div class="barrage-effect-sc" id="effect-sc">
+                <!--                <div class="barrage-effect-sc-item">-->
+                <!--                    <div class="barrage-effect-sc-header">-->
+                <!--                        <img class="barrage-effect-sc-avatar" :src="noface"/>-->
+                <!--                        <div class="barrage-effect-sc-price">￥ 30</div>-->
+                <!--                    </div>-->
+                <!--                </div>-->
+            </div>
+            <div class="barrage-effect-box" id="effect" :style="{height: (boxHeight-36) +'px'}">
             </div>
         </div>
         <div :class="bScrollHide?'barrage-box scroll-hide':'barrage-box'"
@@ -258,8 +266,8 @@
                 this.posX = this.$bSetting.get('posX') || 0
                 this.posY = this.$bSetting.get('posY') || 0
                 this.medalVisible = this.$bSetting.get('medalVisible') || false
-                this.effectFlag = this.$bSetting.get('effectFlag') || true
-                this.joinShow = this.$bSetting.get('joinShow') || true
+                this.effectFlag = this.$bSetting.get('effectFlag') || false
+                this.joinShow = this.$bSetting.get('joinShow') || false
                 this.bColor = this.$bSetting.get('bColor') || 'rgba(0,0,0,0.5)'
                 this.uNameColor = this.$bSetting.get('uNameColor') || '#a6c0e8'
                 this.bMessageColor = this.$bSetting.get('bMessageColor') || '#ffffff'
@@ -333,6 +341,8 @@
                     this.addHeadLog('请输入正确的房间号码', 1)
                     this.dialogVisible = false
                 } else {
+                    this.ipcRenderer.send('barrage-open')
+                    if (this.roomTemp === this.$ws.roomId && this.$ws.connected) return
                     this.$api.getRealRoomInfo(this.roomTemp).then(res => {
                         this_.roomInfo = res
                         this_.roomTemp = res.roomId
@@ -389,7 +399,7 @@
                     innerHtml += admin
                 innerHtml += uname
                 const p = document.createElement('p')
-                p.setAttribute('class', 'barrage-p')
+                p.setAttribute('class', data.uid === this.userInfo.uid ? 'barrage-p barrage-self' : 'barrage-p')
                 p.setAttribute('title', this.dateFormat(data.timeline))
                 p.innerHTML = innerHtml
                 if (data.emoticon.has) {
@@ -451,15 +461,107 @@
                 p.setAttribute('style', `color:${this.bMessageColor}`)
                 p.innerText = data.message
                 sc.appendChild(p)
-                this.$api.getAvatarContentByUrl(data.face).then((res) => {
-                    avatar.src = res
-                }).catch(e => {
-                    avatar.src = noface
-                })
                 document.getElementById('barrage').appendChild(sc)
                 if (this.bScrollHide)
                     document.getElementById('barrage').scrollTop = document.getElementById('barrage').scrollHeight
                 this.deleteFirstItem('barrage', 50)
+
+                const effectSc = document.getElementById('effect-sc')
+                const eSc = document.createElement('div')
+                eSc.setAttribute('class', 'barrage-effect-sc-item')
+                const scUser = document.createElement('div')
+                scUser.setAttribute('class', 'barrage-effect-sc-header')
+                const scCountdown = document.createElement('div')
+                scCountdown.setAttribute('class', 'barrage-effect-sc-countdown')
+                scUser.appendChild(scCountdown)
+                const scAvatar = document.createElement('img')
+                scAvatar.setAttribute('class', 'barrage-effect-sc-avatar')
+                scUser.appendChild(scAvatar)
+                const scUname = document.createElement('span')
+                scUname.setAttribute('class', 'barrage-effect-sc-uname')
+                scUname.setAttribute('style', `color:${this.uNameColor}`)
+                if (data.medal.has && !data.medal.expired) {
+                    let medal = `<span class="${this.medalVisible ? 'barrage-medal' : 'barrage-medal hide'}" style="border-color: #${data.medal.borderColor}">`
+                    medal += `<span class="barrage-medal-name" style="background-image:linear-gradient(45deg, ${data.medal.color}, #${data.medal.backgroundColor});${data.medal.guardLevel > 0 ? 'padding-left:18px' : ''}">`
+                    if (data.medal.guardLevel > 0) {
+                        medal += `<img class="barrage-medal-guard" src="${this.guardLevel[data.medal.guardLevel]}"/>`
+                    }
+                    medal += `${data.medal.name}</span><span class="barrage-medal-level" style="color: ${data.medal.color}">${data.medal.level}</span></span>`
+                    scUname.innerHTML = medal + data.uname
+                } else
+                    scUname.innerText = data.uname
+                scUser.appendChild(scUname)
+                const scPrice = document.createElement('span')
+                scPrice.setAttribute('class', 'barrage-effect-sc-price')
+                scPrice.innerText = '￥ ' + data.price
+                scUser.appendChild(scPrice)
+                eSc.appendChild(scUser)
+                const p1 = document.createElement('p')
+                p1.setAttribute('class', 'barrage-effect-sc-message')
+                p1.setAttribute('style', `color:${this.bMessageColor}`)
+                p1.innerText = data.message
+                eSc.appendChild(p1)
+                effectSc.appendChild(eSc)
+
+                scUser.addEventListener('click', () => {
+                    eSc.setAttribute('class', 'barrage-sc barrage-sc-effect')
+                    scUser.setAttribute('class', 'barrage-sc-user')
+                    scAvatar.setAttribute('class', 'barrage-sc-avatar')
+                    scUname.setAttribute('class', 'barrage-sc-uname')
+                    scPrice.setAttribute('class', 'barrage-sc-price')
+                    p1.setAttribute('class', 'barrage-sc-message')
+                    if (sc) {
+                        scCountdown.setAttribute('class', 'barrage-effect-sc-countdown hide')
+                        sc.setAttribute('style', 'display: none')
+                        for (const element of document.getElementsByClassName('barrage-effect-sc-item')) {
+                            element.setAttribute('style', 'display: none')
+                        }
+                    }
+                })
+
+                effectSc.addEventListener('mouseleave', () => {
+                    eSc.setAttribute('class', 'barrage-effect-sc-item')
+                    scUser.setAttribute('class', 'barrage-effect-sc-header')
+                    scAvatar.setAttribute('class', 'barrage-effect-sc-avatar')
+                    scUname.setAttribute('class', 'barrage-effect-sc-uname')
+                    scPrice.setAttribute('class', 'barrage-effect-sc-price')
+                    p1.setAttribute('class', 'barrage-effect-sc-message')
+                    if (sc) {
+                        scCountdown.setAttribute('class', 'barrage-effect-sc-countdown')
+                        sc.setAttribute('style', 'display: block')
+                        for (const element of document.getElementsByClassName('barrage-effect-sc-item')) {
+                            element.setAttribute('style', '')
+                        }
+                    }
+                })
+
+                const handleCountdown = function (time) {
+                    if (time === data.time) return
+                    scCountdown.setAttribute('style', `right: ${time++ * (76 / data.time)}px`)
+                    setTimeout(() => {
+                        handleCountdown(time)
+                    }, 1000)
+                }
+
+                handleCountdown(0)
+
+                setTimeout(() => {
+                    eSc.remove()
+                    if (sc) {
+                        sc.setAttribute('style', 'display: block')
+                        for (const element of document.getElementsByClassName('barrage-effect-sc-item')) {
+                            element.setAttribute('style', '')
+                        }
+                    }
+                }, data.time * 1000)
+
+                this.$api.getAvatarContentByUrl(data.face).then((res) => {
+                    avatar.src = res
+                    scAvatar.src = res
+                }).catch(e => {
+                    avatar.src = noface
+                    scAvatar.src = noface
+                })
             },
             deleteFirstItem(id, num) {
                 if (document.getElementById(id).childElementCount >= num) {
@@ -616,10 +718,12 @@
                 this.$ws.event.on('start', () => {
                     this.roomInfo.status = 1
                     this.addHeadLog('直播开始了')
+                    this.ipcRenderer.send('update-live-status')
                 })
                 this.$ws.event.on('stop', () => {
                     this.roomInfo.status = 0
                     this.addHeadLog('直播已结束')
+                    this.ipcRenderer.send('update-live-status')
                 })
                 this.$ws.event.on('change', (data) => {
                     if (this.roomInfo.title !== data.title) {
@@ -674,14 +778,10 @@
                 document.getElementById('barrage').innerHTML = ''
                 document.getElementById('join').innerHTML = ''
                 document.getElementById('effect').innerHTML = ''
-            }
-        },
-        created() {
-            const this_ = this
-            this.initCache()
-            this.ipcRenderer.on('resize', (e, size) => {
-                this.clientHeight = size.height
-                if (!this_.joinShow) {
+            },
+            handleResize(size) {
+                if (size) this.clientHeight = size.height
+                if (!this.joinShow) {
                     this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
                 } else {
                     const joinHeight = this.clientHeight - this.boxHeight - this.dividerHeight
@@ -691,7 +791,14 @@
                         this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight
                     }
                 }
-                this.clientWidth = size.width
+                if (size) this.clientWidth = size.width
+            }
+        },
+        created() {
+            const this_ = this
+            this.initCache()
+            this.ipcRenderer.on('resize', (e, size) => {
+                this_.handleResize(size)
             })
             this.ipcRenderer.on('move', (e, pos) => {
                 this.posX = pos.x
@@ -700,8 +807,10 @@
             this.initSetting()
             if (this.clientHeight === 0 || this.clientWidth === 0)
                 this.ipcRenderer.send('get-size')
-            else
+            else {
                 this.ipcRenderer.send('update-size', [this.clientWidth, this.clientHeight])
+                this.handleResize(null)
+            }
             if (this.posX === 0 || this.posY === 0)
                 this.ipcRenderer.send('get-pos')
             else
@@ -741,18 +850,16 @@
             if (!this.$ws.connected) {
                 this.ipcRenderer.send('update-ws-connect', false)
             }
+            this.ipcRenderer.on('connectWsSelf', (e, uInfo) => {
+                this.roomTemp = uInfo.roomId
+                this.saveAndConnect()
+            })
+            this.ipcRenderer.on('disconnectWsSelf', (e, uInfo) => {
+                console.log(uInfo)
+                if (this.$ws.connected && this.$ws.roomId === uInfo.roomId)
+                    this.$ws.close()
+            })
             this.$nextTick(() => {
-                // const data = {
-                //     uid: 0,
-                //     uname: 'userName',
-                //     action: '送出',
-                //     giftName: '小心心',
-                //     num: '24',
-                //     timestamp: 1652321000,
-                //     timeline: new Date(1652321000 * 1000)
-                // }
-                //
-                // this_.addGift(data)
             })
         }
     }
@@ -922,11 +1029,15 @@
     >>> .barrage-p {
         font-family: "Microsoft YaHei", sans-serif;
         font-size: 14px;
-        margin: 0 10px 0px 10px;
-        padding: 5px;
+        margin: 0 0 10px 0;
+        padding: 0 8px;
         /*box-shadow: 0 8px 10px -8px #a6c0e8;*/
         border-radius: 6px;
         line-height: 30px;
+    }
+
+    >>> .barrage-self {
+        box-shadow: inset 0 -8px 8px -8px #a6c0e8;
     }
 
     >>> .barrage-p:hover {
@@ -1058,8 +1169,8 @@
     >>> .join-p {
         font-family: "Microsoft YaHei", sans-serif;
         font-size: 14px;
-        margin: 0 0 12px 0;
-        padding: 6px 8px 0 8px;
+        margin: 0 0 8px 0;
+        padding: 4px 8px 0 8px;
         color: white;
     }
 
@@ -1135,12 +1246,85 @@
         position: relative;
     }
 
-    .barrage-effect-box {
+    .barrage-effect-sc {
         display: inline-block;
-        vertical-align: bottom;
+        vertical-align: middle;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        height: 36px;
+        z-index: 80;
+    }
+
+    >>> .barrage-sc-effect {
+        margin-top: 10px;
+        background: rgba(166, 192, 232, 0.6);
+        box-shadow: 0 0 5px 1px #a6c0e8 !important;
+    }
+
+    >>> .barrage-effect-sc-item {
+        display: inline-block;
+        border-radius: 14px;
+    }
+
+    >>> .barrage-effect-sc-header {
+        height: 28px;
+        width: 100px;
+        margin: 4px;
+        box-shadow: 0 0 1em 2px #a6c0e8;
+        border-radius: 14px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    >>> .barrage-effect-sc-countdown {
+        width: 90px;
+        position: absolute;
+        right: 76px;
+        top: 0;
+        height: 28px;
+        background: #a6c0e8;
+        z-index: -1;
+        border-radius: 4px 14px 14px 4px;
+    }
+
+    >>> .barrage-effect-sc-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    >>> .barrage-effect-sc-uname {
+        display: none;
+    }
+
+    >>> .barrage-effect-sc-price {
+        display: inline-block;
+        line-height: 28px;
+        vertical-align: top;
+        height: 28px;
+        width: 70px;
+        margin-left: 2px;
+        text-align: center;
+        padding-right: 14px;
+        box-sizing: border-box;
+        color: gold;
+    }
+
+    >>> .barrage-effect-sc-message {
+        display: none;
+    }
+
+    .barrage-effect-box {
+        display: flex;
+        /*vertical-align: bottom;*/
         width: 100%;
         position: absolute;
         bottom: 0;
+        flex-direction: column-reverse;
+        overflow: hidden;
     }
 
     >>> .barrage-effect-item {
@@ -1153,6 +1337,7 @@
         animation-name: slidein;
         animation-timing-function: ease-out;
         overflow: hidden;
+        flex-shrink: 0;
     }
 
     >>> .barrage-effect-background {

@@ -8,10 +8,11 @@ const http = {
                 method: 'GET',
                 url,
                 qs: params,
-                headers
+                headers,
+                json: true
             }, (err, res, body) => {
                 if (!err) {
-                    resolve(JSON.parse(body))
+                    resolve(body)
                 }
                 resolve({code: -1, message: '请求出错'})
             })
@@ -179,7 +180,34 @@ export default {
             return result
         } else
             return Promise.reject(res.message)
+    },
+    getRelease: async (source = 'gitee', curVersion) => {
+        let url = ''
+        let res = null
+        switch (source) {
+            case "github":
+                url = 'https://api.github.com/repos/VinoxM/bilive-manager-electron/releases/latest'
+                break
+            case 'gitee':
+                url = 'https://gitee.com/api/v5/repos/VinoxM/bilive-manager-electron/releases/latest'
+                break
+        }
+        res = await http.get(
+            url, null,
+            {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1521.3 Safari/537.36'
 
+            })
+        const result = {hasNew: false, downloadUrl: '', message: null}
+        if (res.assets) {
+            const version = res.tag_name
+            if (checkUpdate(version, curVersion)) {
+                result.hasNew = true
+                result.downloadUrl = res.assets[0]['browser_download_url']
+            }
+            return result
+        }
+        return Promise.reject(res.message || res)
     },
     updateLiveTitle: async (roomId, title, token, cookie) => {
         const url = 'https://api.live.bilibili.com/room/v1/Room/update'
@@ -258,4 +286,10 @@ function getFaceContent(face) {
             reject()
         })
     })
+}
+
+function checkUpdate(version, curVersion) {
+    const ver = String(version).replace('v', '').split('.')
+    const curVer = String(curVersion).replace('v', '').split('.')
+    return ver.some((o, i) => o - curVer[i] > 0)
 }
