@@ -1,5 +1,5 @@
 <template>
-    <div class="barrage-container" @mouseup="dividerFlag=false" @mousemove="dividerMove"
+    <div :class="containerClass" @mouseup="dividerFlag=false" @mousemove="dividerMove"
          @mouseleave="dividerFlag=false" :style="{cursor: dividerFlag?'ns-resize':'default', background: bColor}">
         <div class="barrage-header" v-show="!throughFlag">
             <div class="live-avatar-model" :style="avatarColor" :title="roomTitle" @click="openUrl"></div>
@@ -26,12 +26,6 @@
         <div style="height: 36px" v-if="!throughFlag"></div>
         <div class="barrage-effect" :style="{height:boxHeight+'px'}">
             <div class="barrage-effect-sc" id="effect-sc">
-                <!--                <div class="barrage-effect-sc-item">-->
-                <!--                    <div class="barrage-effect-sc-header">-->
-                <!--                        <img class="barrage-effect-sc-avatar" :src="noface"/>-->
-                <!--                        <div class="barrage-effect-sc-price">￥ 30</div>-->
-                <!--                    </div>-->
-                <!--                </div>-->
             </div>
             <div class="barrage-effect-box" id="effect" :style="{height: (boxHeight-36) +'px'}">
             </div>
@@ -181,7 +175,12 @@
                 settingVisible: false,
                 medalVisible: false,
                 effectFlag: true,
-                joinShow: false
+                joinShow: false,
+                statusTitle: {
+                    0: '停播中',
+                    1: '直播中',
+                    2: '轮播中'
+                }
             }
         },
         watch: {
@@ -235,6 +234,20 @@
             }
         },
         computed: {
+            containerClass() {
+                if (this.throughFlag && this.connected) {
+                    switch (this.roomInfo.status) {
+                        case 0:
+                            return 'barrage-container heartbeat-off'
+                        case 1:
+                            return 'barrage-container heartbeat-on'
+                        case 2:
+                            return 'barrage-container heartbeat-loop'
+                    }
+                } else {
+                    return 'barrage-container'
+                }
+            },
             titleWidth() {
                 return this.clientWidth - 210
             },
@@ -245,16 +258,21 @@
                 return this.connected ? '断开连接' : '连接弹幕'
             },
             avatarColor() {
-                if (!this.connected)
-                    return {}
-                else if (this.connected && this.roomInfo.status)
-                    return {boxShadow: '0 0 2em 0 green'}
+                if (this.connected)
+                    switch (this.roomInfo.status) {
+                        case 0:
+                            return {boxShadow: '0 0 2em 0 red'}
+                        case 1:
+                            return {boxShadow: '0 0 2em 0 green'}
+                        case 2:
+                            return {boxShadow: '0 0 2em 0 #92d1e5'}
+                    }
                 else
-                    return {boxShadow: '0 0 2em 0 red'}
+                    return {}
             },
             roomTitle() {
                 if (this.roomInfo.uid !== 0) {
-                    return `${this.roomInfo.uname}\n${this.roomInfo.areaName}\n${this.roomInfo.title}`
+                    return `${this.statusTitle[this.roomInfo.status]}\n${this.roomInfo.uname}\n${this.roomInfo.areaName}\n${this.roomInfo.title}`
                 } else
                     return ''
             }
@@ -401,6 +419,7 @@
                 const p = document.createElement('p')
                 p.setAttribute('class', data.uid === this.userInfo.uid ? 'barrage-p barrage-self' : 'barrage-p')
                 p.setAttribute('title', this.dateFormat(data.timeline))
+                p.setAttribute('uid', data.uid)
                 p.innerHTML = innerHtml
                 if (data.emoticon.has) {
                     const message = document.createElement('img')
@@ -424,9 +443,10 @@
                     p.appendChild(message)
                 }
                 document.getElementById('barrage').appendChild(p)
-                if (this.bScrollHide)
+                if (this.bScrollHide) {
                     document.getElementById('barrage').scrollTop = document.getElementById('barrage').scrollHeight
-                this.deleteFirstItem('barrage', 50)
+                    this.deleteFirstItem('barrage', 50)
+                }
             },
             addSc(data) {
                 console.log('add sc')
@@ -462,9 +482,10 @@
                 p.innerText = data.message
                 sc.appendChild(p)
                 document.getElementById('barrage').appendChild(sc)
-                if (this.bScrollHide)
+                if (this.bScrollHide) {
                     document.getElementById('barrage').scrollTop = document.getElementById('barrage').scrollHeight
-                this.deleteFirstItem('barrage', 50)
+                    this.deleteFirstItem('barrage', 50)
+                }
 
                 const effectSc = document.getElementById('effect-sc')
                 const eSc = document.createElement('div')
@@ -592,9 +613,10 @@
                 p.setAttribute('title', this.dateFormat(data.timeline))
                 p.innerHTML = innerHtml
                 document.getElementById('join').appendChild(p)
-                if (this.jScrollHide)
+                if (this.jScrollHide) {
                     document.getElementById('join').scrollTop = document.getElementById('join').scrollHeight
-                this.deleteFirstItem('join', 20)
+                    this.deleteFirstItem('join', 20)
+                }
             },
             addGift(data) {
                 const uname = `<span class="gift-uname" style="color:${this.uNameColor}">${data.uname}</span>`
@@ -604,9 +626,10 @@
                 p.setAttribute('title', this.dateFormat(data.timeline))
                 p.innerHTML = innerHtml
                 document.getElementById('join').appendChild(p)
-                if (this.jScrollHide)
+                if (this.jScrollHide) {
                     document.getElementById('join').scrollTop = document.getElementById('join').scrollHeight
-                this.deleteFirstItem('join', 20)
+                    this.deleteFirstItem('join', 20)
+                }
                 if (this.joinShow) return
                 const item = document.createElement('div')
                 item.setAttribute('class', 'barrage-effect-item')
@@ -825,6 +848,9 @@
                     uid: uInfo.uid,
                     label: `[${uInfo.roomId}] ${uInfo.uname}`
                 }]
+                for (const elem of document.getElementsByClassName('barrage-p')) {
+                    elem.setAttribute('class', parseInt(elem.getAttribute('uid')) === this_.userInfo.uid ? 'barrage-p barrage-self' : 'barrage-p')
+                }
             })
             this.ipcRenderer.send('update-user-info')
             this.ipcRenderer.on('updateOnTop', (e, flag) => {
@@ -1433,5 +1459,101 @@
     >>> .barrage-effect-gift-num {
         text-decoration: underline;
         /*color: #a6c0e8;*/
+    }
+
+    .heartbeat-off {
+        box-shadow: inset 0 0 2px 1px red;
+        animation: heartbeat-red 2.5s linear 1s;
+        animation-iteration-count: infinite;
+    }
+
+    .heartbeat-on {
+        box-shadow: inset 0 0 2px 1px #008000;
+        animation: heartbeat-blue 2.5s linear 1s;
+        animation-iteration-count: infinite;
+    }
+
+    .heartbeat-loop {
+        box-shadow: inset 0 0 2px 1px #92d1e5;
+        animation: heartbeat-gray 2.5s linear 1s;
+        animation-iteration-count: infinite;
+    }
+
+    @keyframes heartbeat-red {
+        0% {
+            box-shadow: inset 0 0 2px 1px red;
+        }
+
+        20% {
+            box-shadow: inset 0 0 6px 2px red;
+        }
+
+        40% {
+            box-shadow: inset 0 0 1em 3px red;
+        }
+
+        50% {
+            box-shadow: inset 0 0 1em 3px red;
+        }
+
+        60% {
+            box-shadow: inset 0 0 1em 3px red;
+        }
+
+        80% {
+            box-shadow: inset 0 0 6px 2px red;
+        }
+    }
+
+    @keyframes heartbeat-gray {
+        0% {
+            box-shadow: inset 0 0 2px 1px #92d1e5;
+        }
+
+        20% {
+            box-shadow: inset 0 0 6px 2px #92d1e5;
+        }
+
+        40% {
+            box-shadow: inset 0 0 2em 4px #92d1e5;
+        }
+
+        50% {
+            box-shadow: inset 0 0 2em 4px #92d1e5;
+        }
+
+        60% {
+            box-shadow: inset 0 0 2em 4px #92d1e5;
+        }
+
+        80% {
+            box-shadow: inset 0 0 6px 2px #92d1e5;
+        }
+    }
+
+    @keyframes heartbeat-blue {
+        0% {
+            box-shadow: inset 0 0 2px 1px #008000;
+        }
+
+        20% {
+            box-shadow: inset 0 0 6px 2px #008000;
+        }
+
+        40% {
+            box-shadow: inset 0 0 2em 4px #008000;
+        }
+
+        50% {
+            box-shadow: inset 0 0 2em 4px #008000;
+        }
+
+        60% {
+            box-shadow: inset 0 0 2em 4px #008000;
+        }
+
+        80% {
+            box-shadow: inset 0 0 6px 2px #008000;
+        }
     }
 </style>

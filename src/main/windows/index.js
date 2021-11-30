@@ -26,6 +26,12 @@ export function createWindows() {
         }
     })
 
+    globalShortcut.register('Alt+Shift+Z', () => {
+        barrage.barrageWindow.setIgnoreMouseEvents(false)
+        systemTray.menu.getMenuItemById('clickThrough').checked = false
+        barrage.barrageWindow.webContents.send('toggleClickThrough', false)
+    })
+
     ipcMain.on('click-through', () => {
         barrage.barrageWindow.setIgnoreMouseEvents(true)
         systemTray.menu.getMenuItemById('clickThrough').checked = true

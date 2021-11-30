@@ -39,7 +39,7 @@ export class BiliSocket {
                 case 5:
                     packet.body.forEach((body) => {
                         let timestamp = 0
-                        // console.log(body)
+                        console.log(body)
                         switch (body['cmd']) {
                             case 'DANMU_MSG':
                                 this.event.emit('message', {
@@ -79,7 +79,7 @@ export class BiliSocket {
                                     timestamp: body.data.timestamp,
                                     timeline: new Date(body.data.timestamp * 1000)
                                 })
-                                console.log(JSON.stringify(body.data))
+                                // console.log(JSON.stringify(body.data))
                                 break;
                             case 'COMBO_SEND':
                                 timestamp = String(body.data.combo_id).split(":").pop()
