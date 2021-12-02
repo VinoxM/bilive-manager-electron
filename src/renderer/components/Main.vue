@@ -327,15 +327,21 @@
                 this.settingMain.runForUpdate = this.$mSetting.get('runForUpdate') || false
                 this.settingMain.updateSource = this.$mSetting.get('updateSource') || 'gitee'
                 this.settingMain.sendMsgShortcut = this.$mSetting.get('sendMsgShortcut') || ['', '', '', '无']
-                if (isCreated) this.ipcRenderer.send('update-shortcut-sendMsg', {
-                    old: '无',
-                    new_: this.settingMain.sendMsgShortcut[3]
-                })
+                this.shortcutOps.sendMsg = this.settingMain.sendMsgShortcut
+                if (isCreated) {
+                    this.ipcRenderer.send('update-shortcut-sendMsg', {
+                        old: '无',
+                        new_: this.settingMain.sendMsgShortcut[3]
+                    })
+                }
                 this.settingMain.clickThroughShortcut = this.$mSetting.get('clickThroughShortcut') || ['', '', '', '无']
-                if (isCreated) this.ipcRenderer.send('update-shortcut-clickThrough', {
-                    old: '无',
-                    new_: this.settingMain.clickThroughShortcut[3]
-                })
+                this.shortcutOps.clickThrough = this.settingMain.clickThroughShortcut
+                if (isCreated) {
+                    this.ipcRenderer.send('update-shortcut-clickThrough', {
+                        old: '无',
+                        new_: this.settingMain.clickThroughShortcut[3]
+                    })
+                }
                 this.ipcRenderer.send('save-setting-main', {
                     closeAction: this.settingMain.closeAction,
                     dontAskMe: this.settingMain.dontAskMe
