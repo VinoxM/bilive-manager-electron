@@ -22,7 +22,7 @@ export const main = {
             width: 300,
             height: 400,
             webPreferences: {
-                devTools: false//process.env.NODE_ENV === 'development'
+                devTools: true//process.env.NODE_ENV === 'development'
             },
             resizable: false,
             frame: false,

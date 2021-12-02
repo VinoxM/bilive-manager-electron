@@ -19,17 +19,30 @@ export function createWindows() {
     systemTray.createTray(main, barrage)
     close.createWindow(main)
 
-    globalShortcut.register('Alt+Shift+C', () => {
-        if (connected && roomInfo['roomId'] !== 0) {
-            answer.answerWindow.show()
-            answer.answerWindow.webContents.send('focusInput')
+    ipcMain.on('update-shortcut-sendMsg', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
         }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            if (connected && roomInfo['roomId'] !== 0) {
+                answer.answerWindow.show()
+                answer.answerWindow.webContents.send('focusInput')
+            }
+        })
     })
 
-    globalShortcut.register('Alt+Shift+Z', () => {
-        barrage.barrageWindow.setIgnoreMouseEvents(false)
-        systemTray.menu.getMenuItemById('clickThrough').checked = false
-        barrage.barrageWindow.webContents.send('toggleClickThrough', false)
+    ipcMain.on('update-shortcut-clickThrough', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
+        }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            const flag = systemTray.menu.getMenuItemById('clickThrough').checked
+            barrage.barrageWindow.setIgnoreMouseEvents(!flag)
+            systemTray.menu.getMenuItemById('clickThrough').checked = !flag
+            barrage.barrageWindow.webContents.send('toggleClickThrough', !flag)
+        })
     })
 
     ipcMain.on('click-through', () => {
@@ -117,12 +130,12 @@ export function createWindows() {
         answer.answerWindow.webContents.send('updateSetting', setting)
     })
 
-    ipcMain.on('save-setting-main', (e,s)=>{
+    ipcMain.on('save-setting-main', (e, s) => {
         settingMain = s
         close.closeWindow.webContents.send('settingMainUpdate', settingMain)
     })
 
-    ipcMain.on('update-setting-main', ()=>{
+    ipcMain.on('update-setting-main', () => {
         close.closeWindow.webContents.send('settingMainUpdate', settingMain)
     })
 
