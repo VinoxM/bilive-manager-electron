@@ -262,7 +262,7 @@ export default {
         const headers = {cookie}
         const res = await http.post(url, params, headers)
         if (res.code === 0) {
-            return res.data ? '发送弹幕成功' : Promise.reject('弹幕好像被吃掉了')
+            return (res.data && res.message !== 'f') ? '发送弹幕成功' : Promise.reject('弹幕好像被吃掉了')
         }
         return Promise.reject(res.message)
     }

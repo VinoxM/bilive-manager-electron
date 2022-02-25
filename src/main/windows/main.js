@@ -147,6 +147,7 @@ export const main = {
         ipcMain.on('update-live-status', ()=>{
             mainWindow.webContents.send('updateLiveStatus')
         })
-        // mainWindow.openDevTools({mode: 'undocked'});
+
+        mainWindow.openDevTools({mode: 'undocked'});
     }
 }

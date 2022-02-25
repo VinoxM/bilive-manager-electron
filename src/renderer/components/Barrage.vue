@@ -27,7 +27,7 @@
         <div class="barrage-effect" :style="{height:boxHeight+'px'}">
             <div class="barrage-effect-sc" id="effect-sc">
             </div>
-            <div class="barrage-effect-box" id="effect" :style="{height: (boxHeight-36) +'px'}">
+            <div class="barrage-effect-box" id="effect" :style="{maxHeight: (boxHeight-36) +'px'}">
             </div>
         </div>
         <div :class="bScrollHide?'barrage-box scroll-hide':'barrage-box'"
@@ -180,7 +180,9 @@
                     0: '停播中',
                     1: '直播中',
                     2: '轮播中'
-                }
+                },
+                barrageWait: [],
+                joinWait: []
             }
         },
         watch: {
@@ -378,7 +380,7 @@
                             })
                             this_.$api.getAvatarContentByUid(this_.roomInfo.uid).then(res => {
                                 this_.avatar = res
-                            }).catch(e => {
+                            }).catch(() => {
                                 this_.avatar = noface
                             })
                         }
@@ -488,6 +490,7 @@
                 }
 
                 const effectSc = document.getElementById('effect-sc')
+                effectSc.setAttribute('class', 'barrage-effect-sc z-index-80')
                 const eSc = document.createElement('div')
                 eSc.setAttribute('class', 'barrage-effect-sc-item')
                 const scUser = document.createElement('div')
@@ -574,6 +577,9 @@
                             element.setAttribute('style', '')
                         }
                     }
+                    if (document.getElementById('effect-sc').childElementCount === 0) {
+                        document.getElementById('effect-sc').setAttribute('class', 'barrage-effect-sc')
+                    }
                 }, data.time * 1000)
 
                 this.$api.getAvatarContentByUrl(data.face).then((res) => {
@@ -632,7 +638,7 @@
                 }
                 if (this.joinShow) return
                 const item = document.createElement('div')
-                item.setAttribute('class', 'barrage-effect-item')
+                item.setAttribute('class', 'barrage-effect-item effect-slide-in')
                 const avatarBox = document.createElement('div')
                 avatarBox.setAttribute('class', 'barrage-effect-gift-avatar')
                 const avatar = document.createElement('img')
@@ -665,8 +671,12 @@
                 item.appendChild(giftBox)
                 document.getElementById('effect').appendChild(item)
                 setTimeout(() => {
+                    item.setAttribute('class', 'barrage-effect-item effect-slide-leave')
+                }, 4400)
+                setTimeout(() => {
                     item.remove()
                 }, 5000)
+                this.setEffectScroll()
             },
             addEffect(data) {
                 // join area
@@ -683,7 +693,7 @@
                 if (!this.effectFlag) return
                 // effect area
                 const item = document.createElement('div')
-                item.setAttribute('class', 'barrage-effect-item')
+                item.setAttribute('class', 'barrage-effect-item effect-slide-in')
                 const back = document.createElement('img')
                 back.setAttribute('class', 'barrage-effect-background')
                 this.$api.getAvatarContentByUrl(data.mapUrl).then(res => {
@@ -703,9 +713,17 @@
                 msg.innerHTML = message1.replace('%>', '</span>')
                 item.appendChild(msg)
                 setTimeout(() => {
+                    item.setAttribute('class', 'barrage-effect-item effect-slide-leave')
+                }, (data.duration + 1) * 1000 - 600)
+
+                setTimeout(() => {
                     item.remove()
                 }, (data.duration + 1) * 1000)
                 document.getElementById('effect').appendChild(item)
+                this.setEffectScroll()
+            },
+            setEffectScroll() {
+                document.getElementById('effect').scrollTop = document.getElementById('effect').scrollHeight
             },
             handleJoinWheel() {
                 this.jScrollHide = false
@@ -1279,6 +1297,9 @@
         position: absolute;
         top: 0;
         height: 36px;
+    }
+
+    >>> .z-index-80 {
         z-index: 80;
     }
 
@@ -1344,26 +1365,37 @@
     }
 
     .barrage-effect-box {
-        display: flex;
-        /*vertical-align: bottom;*/
+        display: inline-block;
+        vertical-align: bottom;
         width: 100%;
         position: absolute;
         bottom: 0;
-        flex-direction: column-reverse;
+        /*flex-direction: column;*/
         overflow: hidden;
     }
 
     >>> .barrage-effect-item {
+        display: inline-block;
         width: 360px;
         height: 70px;
         float: right;
         position: relative;
         right: -50px;
-        animation-duration: 0.6s;
-        animation-name: slidein;
-        animation-timing-function: ease-out;
         overflow: hidden;
-        flex-shrink: 0;
+        vertical-align: bottom;
+        /*flex-shrink: 0;*/
+    }
+
+    >>> .effect-slide-in {
+        animation-duration: 0.6s;
+        animation-name: slide-in;
+        animation-timing-function: ease-out;
+    }
+
+    >>> .effect-slide-leave {
+        animation-duration: 0.6s;
+        animation-name: slide-leave;
+        animation-timing-function: ease-out;
     }
 
     >>> .barrage-effect-background {
@@ -1374,13 +1406,23 @@
         z-index: 20;
     }
 
-    @keyframes slidein {
+    @keyframes slide-in {
         from {
             right: -360px;
         }
 
         to {
             right: -50px;
+        }
+    }
+
+    @keyframes slide-leave {
+        from {
+            right: -50px;
+        }
+
+        to {
+            right: -360px;
         }
     }
 

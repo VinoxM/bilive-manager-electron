@@ -12,7 +12,8 @@ if (process.env.NODE_ENV !== 'development') {
 app.on('ready', () => {
     createWindows()
 })
-
+app.disableHardwareAcceleration()
+app.disableDomainBlockingFor3DAPIs()
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit()
