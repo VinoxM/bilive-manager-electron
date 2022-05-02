@@ -1,4 +1,4 @@
-import {globalShortcut, ipcMain, Menu} from 'electron'
+import {globalShortcut, ipcMain, Menu, Notification} from 'electron'
 import {main} from './main'
 import {barrage} from './barrage'
 import {answer} from './answer'
@@ -10,6 +10,7 @@ let roomInfo
 let connected = false
 let setting
 let settingMain
+const argv = process.argv
 
 export function createWindows() {
     Menu.setApplicationMenu(null)
@@ -95,6 +96,31 @@ export function createWindows() {
         systemTray.menu.getMenuItemById('connect').checked = flag
         if (!flag) {
             answer.answerWindow.webContents.send('wsClosed')
+        }
+    })
+
+    ipcMain.on('update-live-status', (_,info) => {
+        main.mainWindow.webContents.send('updateLiveStatus')
+        if (info.status && !barrage.barrageWindow.isVisible()){
+            let notify = new Notification({
+                title: `${info.uname}的直播开始了`,
+                body: `[${info.areaName}] ${info.title}`,
+                silent: false
+            })
+            notify.on('click', ()=>{
+                barrage.barrageWindow.show()
+                notify.close()
+            })
+            notify.show()
+            return
+        }
+        if (!info.status && !barrage.barrageWindow.isVisible()) {
+            let notify = new Notification({
+                title: `${info.uname}的直播结束了`,
+                body: `[${info.areaName}] ${info.title}`,
+                silent: false
+            })
+            notify.show()
         }
     })
 

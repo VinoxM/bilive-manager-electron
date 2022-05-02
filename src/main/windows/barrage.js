@@ -16,7 +16,7 @@ export const barrage = {
             maxHeight: 800,
             minHeight: 500,
             webPreferences: {
-                devTools: true//process.env.NODE_ENV === 'development'
+                devTools: process.env.NODE_ENV === 'development'
             },
             frame: false,
             transparent: true,

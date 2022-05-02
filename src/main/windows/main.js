@@ -22,7 +22,7 @@ export const main = {
             width: 300,
             height: 400,
             webPreferences: {
-                devTools: true//process.env.NODE_ENV === 'development'
+                devTools: process.env.NODE_ENV === 'development'
             },
             resizable: false,
             frame: false,
@@ -142,10 +142,6 @@ export const main = {
                 cancelId: 2
             }, () => {
             })
-        })
-
-        ipcMain.on('update-live-status', ()=>{
-            mainWindow.webContents.send('updateLiveStatus')
         })
 
         mainWindow.openDevTools({mode: 'undocked'});

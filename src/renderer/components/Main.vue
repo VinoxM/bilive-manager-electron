@@ -29,7 +29,9 @@
             <div class="box-live-info" v-loading="liveLoading">
                 <div class="live-info-item margin-b-5">
                     <span class="live-info-label">地址</span>
-                    <el-link class="live-info-link" @click="openUrl" title="点击打开" :type="loadFail?'info':'default'"
+                    <el-link class="live-info-link" @click="openUrl" @click.right.native="copyRoom"
+                             title="左键点击打开,右键点击复制房间号"
+                             :type="loadFail?'info':'default'"
                              :disabled="loadFail">{{liveInfo.link}}
                     </el-link>
                 </div>
@@ -327,7 +329,7 @@
                 this.settingMain.runForUpdate = this.$mSetting.get('runForUpdate') || false
                 this.settingMain.updateSource = this.$mSetting.get('updateSource') || 'gitee'
                 this.settingMain.sendMsgShortcut = this.$mSetting.get('sendMsgShortcut') || ['', '', '', '无']
-                this.shortcutOps.sendMsg = this.settingMain.sendMsgShortcut
+                this.shortcutOps.sendMsg = Array.from(this.settingMain.sendMsgShortcut)
                 if (isCreated) {
                     this.ipcRenderer.send('update-shortcut-sendMsg', {
                         old: '无',
@@ -335,7 +337,7 @@
                     })
                 }
                 this.settingMain.clickThroughShortcut = this.$mSetting.get('clickThroughShortcut') || ['', '', '', '无']
-                this.shortcutOps.clickThrough = this.settingMain.clickThroughShortcut
+                this.shortcutOps.clickThrough = Array.from(this.settingMain.clickThroughShortcut)
                 if (isCreated) {
                     this.ipcRenderer.send('update-shortcut-clickThrough', {
                         old: '无',
@@ -415,7 +417,7 @@
                     this_.userInfo.uid = parseInt(this_.uid)
                     this_.userInfo.uname = res.name
                     this_.userInfo.level = res.level
-                    this_.userInfo.roomId = res['live_room']['roomid']
+                    this_.userInfo.roomId = res['live_room'] ? res['live_room']['roomid'] : 0
                     this.$api.getUserStatByCookie(this.uid, this.cookie).then(r => {
                         this_.userInfo.follow = r['following']
                         this_.userInfo.fans = r['follower']
@@ -477,8 +479,14 @@
                 this.liveLoading = true
                 await this.$api.getLiveInfoByCookie(this.cookie).then(res => {
                     this.liveInfo = res
-                    this.liveInfo.areaName = this.liveArea[this.liveInfo.areaId].label
-                    this.areaIdTemp = res.areaId
+                    if (this.liveArea[this.liveInfo.areaId]) {
+                        this.liveInfo.areaName = this.liveArea[this.liveInfo.areaId].label
+                        this.areaIdTemp = res.areaId
+                    } else {
+                        this.liveInfo.areaName = res.areaId > 0 ? '分区已被隐藏' : '未选择分区'
+                        this.liveInfo.areaId = ''
+                        this.areaIdTemp = ''
+                    }
                     this.titleTemp = res.title
                     if (flag) {
                         this.ipcRenderer.send('toggle-live-status', this.liveInfo.status)
@@ -506,6 +514,11 @@
                 if (this.liveInfo.link !== '-') {
                     cp.exec('start ' + this.liveInfo.link)
                 }
+            },
+            copyRoom() {
+                let this_ = this
+                cp.exec('clip').stdin.end(iconv.encode(this_.liveInfo.roomId, 'gbk'));
+                this.addHeadLog(`已复制直播间号: ${this_.liveInfo.roomId} 到剪贴板`)
             },
             copyToClip(msg, type) {
                 cp.exec('clip').stdin.end(iconv.encode(msg, 'gbk'));
@@ -727,7 +740,7 @@
                     old: this.settingMain[`${key}Shortcut`][3],
                     new_: this.shortcutOps[key][3]
                 })
-                this.settingMain[`${key}Shortcut`] = this.shortcutOps[key]
+                this.settingMain[`${key}Shortcut`] = Array.from(this.shortcutOps[key])
                 this.addHeadLog('应用成功')
             }
         },

@@ -1,8 +1,9 @@
 <template>
-    <div :class="containerClass" @mouseup="dividerFlag=false" @mousemove="dividerMove"
+    <div class="barrage-container" @mouseup="dividerFlag=false" @mousemove="dividerMove"
          @mouseleave="dividerFlag=false" :style="{cursor: dividerFlag?'ns-resize':'default', background: bColor}">
         <div class="barrage-header" v-show="!throughFlag">
-            <div class="live-avatar-model" :style="avatarColor" :title="roomTitle" @click="openUrl"></div>
+            <div class="live-avatar-model" :style="avatarColor" :title="roomTitle" @click="openUrl"
+                 @contextmenu="handleRightClick"></div>
             <img class="live-avatar" :src="avatar" draggable="false">
             <span class="live-title" :style="{width:titleWidth+'px'}">
                 {{roomInfo.title}}
@@ -24,6 +25,7 @@
             </div>
         </div>
         <div style="height: 36px" v-if="!throughFlag"></div>
+        <div :class="heartbeatClass"><span>{{roomLiveStatus}}</span></div>
         <div class="barrage-effect" :style="{height:boxHeight+'px'}">
             <div class="barrage-effect-sc" id="effect-sc">
             </div>
@@ -58,7 +60,7 @@
                 </el-option-group>
             </el-select>
             <div slot="footer">
-                <el-link icon="el-icon-check" @click="saveAndConnect">保存</el-link>
+                <el-link icon="el-icon-check" @click="saveAndConnect" :disabled="connectFlag">保存</el-link>
             </div>
         </el-dialog>
 
@@ -113,9 +115,15 @@
 
 <script>
     const cp = require('child_process')
+    const iconv = require('iconv-lite')
     import noface from '../assets/noface.jpg'
-    import guard3 from '../assets/icon-guard3.png'
+    import guard1 from '../assets/icon-guard1.png'
     import guard2 from '../assets/icon-guard2.png'
+    import guard3 from '../assets/icon-guard3.png'
+
+    const {remote} = require('electron')
+    const Menu = remote.Menu
+    const MenuItem = remote.MenuItem
 
     export default {
         name: "Barrage",
@@ -176,13 +184,15 @@
                 medalVisible: false,
                 effectFlag: true,
                 joinShow: false,
+                joinHeightTemp: 200,
                 statusTitle: {
                     0: '停播中',
                     1: '直播中',
                     2: '轮播中'
                 },
                 barrageWait: [],
-                joinWait: []
+                joinWait: [],
+                connectFlag: false
             }
         },
         watch: {
@@ -196,8 +206,9 @@
             },
             joinShow(val) {
                 if (val) {
-                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36) - this.dividerHeight - 200
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36) - this.dividerHeight - this.joinHeightTemp
                 } else {
+                    this.joinHeightTemp = this.clientHeight - (this.throughFlag ? 0 : 36) - this.boxHeight - this.dividerHeight
                     this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
                 }
             },
@@ -236,18 +247,28 @@
             }
         },
         computed: {
-            containerClass() {
+            heartbeatClass() {
                 if (this.throughFlag && this.connected) {
                     switch (this.roomInfo.status) {
                         case 0:
-                            return 'barrage-container heartbeat-off'
+                            return 'heartbeat-box heartbeat-off'
                         case 1:
-                            return 'barrage-container heartbeat-on'
+                            return 'heartbeat-box heartbeat-on'
                         case 2:
-                            return 'barrage-container heartbeat-loop'
+                            return 'heartbeat-box heartbeat-loop'
                     }
                 } else {
-                    return 'barrage-container'
+                    return 'hide'
+                }
+            },
+            roomLiveStatus() {
+                switch (this.roomInfo.status) {
+                    case 0:
+                        return '未直播'
+                    case 1:
+                        return '直播中'
+                    case 2:
+                        return '轮播中'
                 }
             },
             titleWidth() {
@@ -322,11 +343,11 @@
                     const y = e.y
                     const joinHeight = this.clientHeight - y - this.dividerHeight
                     if (joinHeight >= this.joinRange[0] && joinHeight <= this.joinRange[1]) {
-                        this.boxHeight = y
+                        this.boxHeight = y - 36
                     } else if (joinHeight > this.joinRange[1]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[1] - 36 - this.dividerHeight
                     } else if (joinHeight < this.joinRange[0]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[0] - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[0] - 36 - this.dividerHeight
                     }
                 }
             },
@@ -343,8 +364,8 @@
                 } else {
                     this.dialogVisible = true
                     this.ipcRenderer.send('click-through-off')
-                    this.ipcRenderer.send('update-ws-connect', false)
                 }
+                this.ipcRenderer.send('update-ws-connect', this.$ws.connected)
             },
             toggleOnTop() {
                 this.ipcRenderer.send('toggle-on-top')
@@ -357,9 +378,11 @@
             },
             saveAndConnect() {
                 let this_ = this
+                this_.connectFlag = true
                 if (this.roomTemp === 0) {
                     this.addHeadLog('请输入正确的房间号码', 1)
                     this.dialogVisible = false
+                    this.connectFlag = false
                 } else {
                     this.ipcRenderer.send('barrage-open')
                     if (this.roomTemp === this.$ws.roomId && this.$ws.connected) return
@@ -385,8 +408,11 @@
                             })
                         }
                         this_.dialogVisible = false
+                        this_.connectFlag = false
                     }).catch(e => {
                         this.addHeadLog(e, 1)
+                        this_.dialogVisible = false
+                        this_.connectFlag = false
                     })
                 }
             },
@@ -411,7 +437,7 @@
                 }
                 const host = `<span class="barrage-host">主</span>`
                 const admin = `<span class="barrage-admin">房</span>`
-                const uname = `<span class="barrage-uname" style="color:${this.uNameColor}">${data.uname}</span><span class="barrage-colon"></span>`
+                const uname = `<span class="barrage-uname" style="color:${this.uNameColor}" uid="${data.uid}">${data.uname}</span><span class="barrage-colon"></span>`
                 let innerHtml = medal
                 if (data.uid === this.roomInfo.uid)
                     innerHtml += host
@@ -459,6 +485,7 @@
                 user.appendChild(avatar)
                 const uname = document.createElement('span')
                 uname.setAttribute('class', 'barrage-sc-uname')
+                uname.setAttribute('uid', data.uid)
                 uname.setAttribute('style', `color:${this.uNameColor}`)
                 if (data.medal.has && !data.medal.expired) {
                     let medal = `<span class="${this.medalVisible ? 'barrage-medal' : 'barrage-medal hide'}" style="border-color: #${data.medal.borderColor}">`
@@ -612,7 +639,7 @@
                 }, 2000)
             },
             addJoin(data) {
-                const uname = `<span class="join-uname" style="color:${this.uNameColor}">${data.uname}</span>`
+                const uname = `<span class="join-uname" style="color:${this.uNameColor}" uid="${data.uid}">${data.uname}</span>`
                 const innerHtml = '欢迎 ' + uname + ' 进入直播间'
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
@@ -625,7 +652,7 @@
                 }
             },
             addGift(data) {
-                const uname = `<span class="gift-uname" style="color:${this.uNameColor}">${data.uname}</span>`
+                const uname = `<span class="gift-uname" style="color:${this.uNameColor}" uid="${data.uid}">${data.uname}</span>`
                 const innerHtml = uname + ` ${data.action}了 <span class="gift-name" style="color:${this.giftColor}">${data.giftName}</span> x <span class="gift-num" style="color:${this.giftColor}">${data.num}</span>`
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
@@ -662,6 +689,7 @@
                 giftBox.setAttribute('style', `background: ${this.giftColor};box-shadow: 0 0 1em 2px ${this.giftColor};`)
                 const giftName = document.createElement('span')
                 giftName.setAttribute('class', 'barrage-effect-gift-uname')
+                giftName.setAttribute('uid', data.uid)
                 giftName.innerText = data.uname
                 giftBox.appendChild(giftName)
                 const gift = document.createElement('span')
@@ -680,7 +708,7 @@
             },
             addEffect(data) {
                 // join area
-                let message = String(data.message).replace('<%', ' <span class="join-uname">')
+                let message = String(data.message).replace('<%', ` <span class="join-uname" uid="${data.uid}">`)
                 message = message.replace('%>', '</span> ')
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
@@ -759,12 +787,12 @@
                 this.$ws.event.on('start', () => {
                     this.roomInfo.status = 1
                     this.addHeadLog('直播开始了')
-                    this.ipcRenderer.send('update-live-status')
+                    this.ipcRenderer.send('update-live-status', this.roomInfo)
                 })
                 this.$ws.event.on('stop', () => {
                     this.roomInfo.status = 0
                     this.addHeadLog('直播已结束')
-                    this.ipcRenderer.send('update-live-status')
+                    this.ipcRenderer.send('update-live-status', this.roomInfo)
                 })
                 this.$ws.event.on('change', (data) => {
                     if (this.roomInfo.title !== data.title) {
@@ -833,6 +861,120 @@
                     }
                 }
                 if (size) this.clientWidth = size.width
+            },
+            async handleRightClick() {
+                const this_ = this
+                if (this.roomInfo.roomId !== 0) {
+                    this.getRoomStream(this.roomInfo.roomId).then(ops => {
+                        // console.log(ops)
+                        ops.forEach(obj => {
+                            obj.submenu = obj.submenu.map(o => {
+                                return {
+                                    label: o.label,
+                                    i: o.index,
+                                    click: function () {
+                                        this_.getRoomStream(this_.roomInfo.roomId, o.qn).then(options => {
+                                            console.log(options)
+                                            let url = ''
+                                            options.some(obj1 => {
+                                                return obj1.submenu.some(o1 => {
+                                                    if (o1.index === o.index) {
+                                                        url = o1.url
+                                                        return true
+                                                    }
+                                                    return false
+                                                })
+                                            })
+                                            cp.exec('clip').stdin.end(iconv.encode(url, 'gbk'));
+                                            this_.addHeadLog('已复制直播流地址到剪贴板')
+                                        }).catch(e => {
+                                            this_.addHeadLog(e, 1)
+                                        })
+                                    }
+                                }
+                            })
+                        })
+                        const menu = Menu.buildFromTemplate(ops)
+                        menu.popup(remote.getCurrentWindow());
+                    }).catch(e => {
+                        this_.addHeadLog(e, 1)
+                    })
+                }
+            },
+            getRoomStream(roomId, qn) {
+                // console.log(qn)
+                return new Promise((resolve, reject) => {
+                    const ops = []
+                    this.$api.getRoomLiveInfo({cid: roomId, qn: qn}).then(res => {
+                        console.log(res)
+                        if (res.live_status !== 1)
+                            reject('直播未开始')
+                        const stream = res.playurl_info.playurl.stream
+                        if (stream) {
+                            const qn_desc = {}
+                            const format_dict = {
+                                'flv': '.flv?',
+                                'ts': '.m3u8?',
+                                'fmp4': '/index.m3u8?'
+                            }
+                            res.playurl_info.playurl.g_qn_desc.map(o => {
+                                qn_desc[o.qn] = o.desc
+                            })
+                            try {
+                                let index = 0
+                                stream.map((o, i) => {
+                                    o.format.map(o1 => {
+                                        o1.codec.map(codec => {
+                                            if (codec.codec_name === 'avc') {
+                                                const qns = []
+                                                const base_url = String(codec.base_url)
+                                                // let index = base_url.indexOf(format_dict[o1.format_name])
+                                                // const base_url_suf = base_url.substring(index)
+                                                // const re_str = codec.current_qn === 10000 ? base_url_suf : `_${codec.current_qn}0${base_url_suf}`
+                                                // const base_url_pre = base_url.replace(re_str, '')
+                                                codec.accept_qn.map(o2 => {
+                                                    qns.push({
+                                                        label: qn_desc[o2],
+                                                        // base_url: base_url_pre + (o2 === 10000 ? '' : `_${o2}0`) + base_url_suf
+                                                        base_url: base_url,
+                                                        qn: o2
+                                                    })
+                                                })
+                                                // console.log(qns)
+                                                codec.url_info.map((o3) => {
+                                                    const sub = {
+                                                        label: index === 0 ? '主线路' : `备线路${index}`,
+                                                        submenu: qns.map((o4, i1)=> {
+                                                            return {
+                                                                label: o4.label,
+                                                                index: index * qns.length + i1,
+                                                                qn: o4.qn,
+                                                                url: o3.host + o4.base_url + o3.extra
+                                                            }
+                                                        })
+                                                    }
+                                                    ops.push(sub)
+                                                    index++
+                                                })
+                                            }
+                                        })
+                                    })
+                                })
+                                console.log(ops)
+                                resolve(ops)
+                            } catch (e) {
+                                // this.addHeadLog('获取直播流失败', 1)
+                                reject(e)
+                            }
+                        } else {
+                            // this.addHeadLog('获取直播流失败', 1)
+                            reject('获取直播流失败')
+                        }
+                    }).catch(e => {
+                        // this.addHeadLog(e, 1)
+                        reject(e)
+                    })
+                })
             }
         },
         created() {
@@ -875,8 +1017,10 @@
                 this.onTop = flag
             })
             this.ipcRenderer.on('toggleClickThrough', (e, flag) => {
-                this.throughFlag = flag
-                this.boxHeight += 36 * (flag ? 1 : -1)
+                if (this.throughFlag !== flag) {
+                    this.throughFlag = flag
+                    this.boxHeight += 36 * (flag ? 1 : -1)
+                }
             })
             this.ipcRenderer.on('toggleWsConnect', () => {
                 this.toggleConnect()
@@ -895,6 +1039,13 @@
                 this.ipcRenderer.send('update-ws-connect', false)
             }
             this.ipcRenderer.on('connectWsSelf', (e, uInfo) => {
+                if (this.$ws.connected) {
+                    if (this.$ws.roomId !== uInfo.roomId) {
+                        this.$ws.close()
+                    } else {
+                        return
+                    }
+                }
                 this.roomTemp = uInfo.roomId
                 this.saveAndConnect()
             })
@@ -903,6 +1054,18 @@
                 if (this.$ws.connected && this.$ws.roomId === uInfo.roomId)
                     this.$ws.close()
             })
+            //     barrage-sc-uname:hover,
+            // >>> .barrage-uname:hover,
+            // >>> .join-uname:hover,
+            // >>> .gift-uname:
+            document.addEventListener('click', (ev => {
+                const className = ev.target.className
+                const classList = ['barrage-sc-uname', 'barrage-uname', 'join-uname', 'gift-uname', 'barrage-effect-gift-uname']
+                if (classList.indexOf(className) > -1) {
+                    const uid = ev.target.getAttribute('uid')
+                    cp.exec('start ' + `https://space.bilibili.com/${uid}`)
+                }
+            }))
             this.$nextTick(() => {
             })
         }
@@ -1080,8 +1243,8 @@
         line-height: 30px;
     }
 
-    >>> .barrage-self {
-        box-shadow: inset 0 -8px 8px -8px #a6c0e8;
+    >>> .barrage-self .barrage-uname {
+        text-decoration: underline;
     }
 
     >>> .barrage-p:hover {
@@ -1142,6 +1305,7 @@
     >>> .barrage-uname {
         color: #a6c0e8;
         font-weight: bold;
+        text-shadow: 1px -1px 5px black;
     }
 
     >>> .barrage-colon:after {
@@ -1222,6 +1386,16 @@
     >>> .gift-uname {
         color: #a6c0e8;
         font-weight: bold;
+        text-shadow: 1px -1px 5px black;
+    }
+
+    >>> .barrage-sc-uname:hover,
+    >>> .barrage-uname:hover,
+    >>> .join-uname:hover,
+    >>> .barrage-effect-gift-uname:hover,
+    >>> .gift-uname:hover {
+        cursor: pointer;
+        text-decoration: underline;
     }
 
     >>> .gift-num {
@@ -1380,19 +1554,20 @@
         height: 70px;
         float: right;
         position: relative;
-        right: -50px;
         overflow: hidden;
         vertical-align: bottom;
         /*flex-shrink: 0;*/
     }
 
     >>> .effect-slide-in {
+        right: -50px;
         animation-duration: 0.6s;
         animation-name: slide-in;
         animation-timing-function: ease-out;
     }
 
     >>> .effect-slide-leave {
+        right: -360px;
         animation-duration: 0.6s;
         animation-name: slide-leave;
         animation-timing-function: ease-out;
@@ -1485,6 +1660,7 @@
         line-height: 20px;
         font-size: 12px;
         padding-left: 8px;
+        text-shadow: 1px -1px 5px black;
     }
 
     >>> .barrage-effect-gift {
@@ -1503,99 +1679,125 @@
         /*color: #a6c0e8;*/
     }
 
+    .heartbeat-box {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 48px;
+        width: 70px;
+        transform: translate(15px, -50%);
+        border-radius: 10px;
+    }
+
+    .heartbeat-box span {
+        height: 24px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 0 0 0 8px;
+        line-height: 24px;
+        text-align: left;
+        color: white;
+        box-sizing: border-box;
+    }
+
     .heartbeat-off {
-        box-shadow: inset 0 0 2px 1px red;
+        box-shadow: 0 0 2px 1px red;
+        background: rgba(255, 0, 0, 0.2);
         animation: heartbeat-red 2.5s linear 1s;
         animation-iteration-count: infinite;
     }
 
     .heartbeat-on {
-        box-shadow: inset 0 0 2px 1px #008000;
-        animation: heartbeat-blue 2.5s linear 1s;
+        box-shadow: 0 0 2px 1px #008000;
+        background: rgba(0, 128, 0, 0.2);
+        animation: heartbeat-green 2.5s linear 1s;
         animation-iteration-count: infinite;
     }
 
     .heartbeat-loop {
-        box-shadow: inset 0 0 2px 1px #92d1e5;
+        box-shadow: 0 0 2px 1px #92d1e5;
+        background: rgba(146, 209, 229, 0.2);
         animation: heartbeat-gray 2.5s linear 1s;
         animation-iteration-count: infinite;
     }
 
     @keyframes heartbeat-red {
         0% {
-            box-shadow: inset 0 0 2px 1px red;
+            box-shadow: 0 0 2px 1px red;
         }
 
         20% {
-            box-shadow: inset 0 0 6px 2px red;
+            box-shadow: 0 0 4px 2px red;
         }
 
         40% {
-            box-shadow: inset 0 0 1em 3px red;
+            box-shadow: 0 0 1em 3px red;
         }
 
         50% {
-            box-shadow: inset 0 0 1em 3px red;
+            box-shadow: 0 0 1em 3px red;
         }
 
         60% {
-            box-shadow: inset 0 0 1em 3px red;
+            box-shadow: 0 0 1em 3px red;
         }
 
         80% {
-            box-shadow: inset 0 0 6px 2px red;
+            box-shadow: 0 0 4px 2px red;
         }
     }
 
     @keyframes heartbeat-gray {
         0% {
-            box-shadow: inset 0 0 2px 1px #92d1e5;
+            box-shadow: 0 0 2px 1px #92d1e5;
         }
 
         20% {
-            box-shadow: inset 0 0 6px 2px #92d1e5;
+            box-shadow: 0 0 4px 2px #92d1e5;
         }
 
         40% {
-            box-shadow: inset 0 0 2em 4px #92d1e5;
+            box-shadow: 0 0 6px 4px #92d1e5;
         }
 
         50% {
-            box-shadow: inset 0 0 2em 4px #92d1e5;
+            box-shadow: 0 0 6px 4px #92d1e5;
         }
 
         60% {
-            box-shadow: inset 0 0 2em 4px #92d1e5;
+            box-shadow: 0 0 6px 4px #92d1e5;
         }
 
         80% {
-            box-shadow: inset 0 0 6px 2px #92d1e5;
+            box-shadow: 0 0 4px 2px #92d1e5;
         }
     }
 
-    @keyframes heartbeat-blue {
+    @keyframes heartbeat-green {
         0% {
-            box-shadow: inset 0 0 2px 1px #008000;
+            box-shadow: 0 0 2px 1px #008000;
         }
 
         20% {
-            box-shadow: inset 0 0 6px 2px #008000;
+            box-shadow: 0 0 4px 2px #008000;
         }
 
         40% {
-            box-shadow: inset 0 0 2em 4px #008000;
+            box-shadow: 0 0 6px 4px #008000;
         }
 
         50% {
-            box-shadow: inset 0 0 2em 4px #008000;
+            box-shadow: 0 0 6px 4px #008000;
         }
 
         60% {
-            box-shadow: inset 0 0 2em 4px #008000;
+            box-shadow: 0 0 6px 4px #008000;
         }
 
         80% {
-            box-shadow: inset 0 0 6px 2px #008000;
+            box-shadow: 0 0 4px 2px #008000;
         }
     }
 </style>

@@ -14,6 +14,7 @@ app.on('ready', () => {
 })
 app.disableHardwareAcceleration()
 app.disableDomainBlockingFor3DAPIs()
+app.setAppUserModelId('Bilive Manager')
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit()

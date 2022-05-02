@@ -14,7 +14,7 @@ import {BSetting, initBSetting} from "../setting/barrage";
 import {MSetting, initMSetting} from "../setting/main";
 import {BiliSocket} from '../sokects/bilive'
 
-const version = 'v1.0.4'
+const version = 'v1.0.7'
 
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 Vue.config.productionTip = false

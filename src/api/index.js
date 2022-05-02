@@ -265,6 +265,20 @@ export default {
             return (res.data && res.message !== 'f') ? '发送弹幕成功' : Promise.reject('弹幕好像被吃掉了')
         }
         return Promise.reject(res.message)
+    },
+    getRoomLiveInfo: async ({cid, qn}) => {
+        const url = 'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo'
+        const res = await http.get(url, {
+            room_id: cid,
+            protocol: '0,1',
+            format: '0,1,2',
+            codec: '0,1',
+            qn,
+            platform: 'web',
+            ptype: 8,
+            dolby: 5
+        })
+        return res.code === 0 ? res.data : Promise.reject(res.message)
     }
 }
 
