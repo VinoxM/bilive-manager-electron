@@ -48,9 +48,16 @@
              draggable="false" id="join">
 
         </div>
+        <div class="barrage-send-message-box" v-show="!throughFlag" :style="{height: messageBoxHeight + 'px'}">
+            <el-input v-model="message" :disabled="!loggedIn||!connected" @keyup.enter.native="sendBarrage"></el-input>
+            <span class="message-limit">
+                <span :style="{color: message.length>30?'red':'#409EFF'}">{{message.length}}</span>
+            </span>
+            <el-button class="submit-message" size="small" type="primary" @click="sendBarrage" :disabled="!loggedIn||!connected" :loading="messageSending">发送弹幕</el-button>
+        </div>
         <header-log :top="throughFlag?0:36" ref="logs"></header-log>
         <el-dialog :visible.sync="dialogVisible" title="连接到直播间" center width="100%" @closed="cacheTemp=''">
-            <el-input class="barrage-connect-input" v-model="roomTemp"></el-input>
+            <el-input-number class="barrage-connect-input" v-model="roomTemp" :controls="false"></el-input-number>
             <el-divider content-position="left">历史记录</el-divider>
             <el-select class="barrage-connect-input" v-model="cacheTemp" ref="cache"
                        placeholder="请选择..." @change="cacheChanged">
@@ -128,12 +135,15 @@
     export default {
         name: "Barrage",
         data() {
+            const state = this.$store.state
             return {
+                state,
                 dividerFlag: false,
                 boxHeight: 600,
                 throughFlag: false,
                 clientHeight: 0,
                 clientWidth: 0,
+                messageBoxHeight: 28,
                 posX: 0,
                 posY: 0,
                 bColor: 'rgba(0,0,0, 0.5)',
@@ -155,28 +165,29 @@
                     children: []
                 }],
                 cacheOptions: [],
-                userInfo: {
-                    uid: 0,
-                    uname: '',
-                    roomId: 0
-                },
+                // userInfo: {
+                //     uid: 0,
+                //     uname: '',
+                //     roomId: 0
+                // },
                 pop: 0,
-                roomInfo: {
-                    areaId: 0,
-                    areaName: '',
-                    link: '',
-                    roomId: 0,
-                    status: 0,
-                    title: '',
-                    uid: 0,
-                    uname: ''
-                },
+                // roomInfo: {
+                //     areaId: 0,
+                //     areaName: '',
+                //     link: '',
+                //     roomId: 0,
+                //     status: 0,
+                //     title: '',
+                //     uid: 0,
+                //     uname: ''
+                // },
                 connected: false,
                 bScrollHide: true,
                 bScrollCd: false,
                 jScrollHide: true,
                 jScrollCd: false,
                 guardLevel: {
+                    1: guard1,
                     2: guard2,
                     3: guard3
                 },
@@ -192,7 +203,9 @@
                 },
                 barrageWait: [],
                 joinWait: [],
-                connectFlag: false
+                connectFlag: false,
+                message: '',
+                messageSending: false
             }
         },
         watch: {
@@ -206,10 +219,10 @@
             },
             joinShow(val) {
                 if (val) {
-                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36) - this.dividerHeight - this.joinHeightTemp
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight)) - this.dividerHeight - this.joinHeightTemp
                 } else {
-                    this.joinHeightTemp = this.clientHeight - (this.throughFlag ? 0 : 36) - this.boxHeight - this.dividerHeight
-                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
+                    this.joinHeightTemp = this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight)) - this.boxHeight - this.dividerHeight
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight))
                 }
             },
             uNameColor(val) {
@@ -244,6 +257,29 @@
                 for (let elem of document.getElementsByClassName('barrage-effect-gift-info')) {
                     elem.setAttribute('style', `color: ${val}`)
                 }
+            },
+            userInfo(val) {
+                if (!val.uid) return
+                console.log(val, this.roomTemp)
+                if (this.roomTemp === 0 && val.roomId !== 0)
+                    this.roomTemp = val.roomId
+                this.cacheGroups[1].children = [{
+                    value: val.roomId,
+                    uname: val.uname,
+                    uid: val.uid,
+                    label: `[${val.roomId}] ${val.uname}`
+                }]
+                for (const elem of document.getElementsByClassName('barrage-p')) {
+                    elem.setAttribute('class', parseInt(elem.getAttribute('uid')) === val.uid ? 'barrage-p barrage-self' : 'barrage-p')
+                }
+            },
+            loggedIn(val) {
+                if (!val) {
+                    if (this.$ws.connected) {
+                        this.$ws.close()
+                        this.ipcRenderer.send('update-ws-connect', this.$ws.connected)
+                    }
+                }
             }
         },
         computed: {
@@ -275,7 +311,7 @@
                 return this.clientWidth - 210
             },
             joinHeight() {
-                return this.clientHeight - (this.throughFlag ? 0 : 36) - this.boxHeight - this.dividerHeight
+                return this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight)) - this.boxHeight - this.dividerHeight
             },
             popTitle() {
                 return this.connected ? '断开连接' : '连接弹幕'
@@ -298,35 +334,66 @@
                     return `${this.statusTitle[this.roomInfo.status]}\n${this.roomInfo.uname}\n${this.roomInfo.areaName}\n${this.roomInfo.title}`
                 } else
                     return ''
+            },
+            userInfo() {
+                return this.state['Info'].user
+            },
+            liveInfo() {
+                return this.state['Info'].live
+            },
+            roomInfo() {
+                return this.state['Info'].room
+            },
+            register() {
+                return this.state['mConfig'].register
+            },
+            loggedIn(){
+                return this.state['Info'].user.uid !== 0
             }
         },
         methods: {
             initSetting() {
-                this.clientHeight = this.$bSetting.get('clientHeight') || 0
-                this.clientWidth = this.$bSetting.get('clientWidth') || 0
-                this.posX = this.$bSetting.get('posX') || 0
-                this.posY = this.$bSetting.get('posY') || 0
-                this.medalVisible = this.$bSetting.get('medalVisible') || false
-                this.effectFlag = this.$bSetting.get('effectFlag') || false
-                this.joinShow = this.$bSetting.get('joinShow') || false
-                this.bColor = this.$bSetting.get('bColor') || 'rgba(0,0,0,0.5)'
-                this.uNameColor = this.$bSetting.get('uNameColor') || '#a6c0e8'
-                this.bMessageColor = this.$bSetting.get('bMessageColor') || '#ffffff'
-                this.giftColor = this.$bSetting.get('giftColor') || '#a6c0e8'
+                const bSetting = JSON.parse(JSON.stringify(this.state['bConfig'].setting))
+                this.clientHeight = bSetting.clientHeight || 0
+                this.clientWidth = bSetting.clientWidth || 0
+                this.posX = bSetting.posX || 0
+                this.posY = bSetting.posY || 0
+                this.medalVisible = bSetting.medalVisible || false
+                this.effectFlag = bSetting.effectFlag || false
+                this.joinShow = bSetting.joinShow || false
+                this.bColor = bSetting.bColor || 'rgba(0,0,0,0.5)'
+                this.uNameColor = bSetting.uNameColor || '#a6c0e8'
+                this.bMessageColor = bSetting.bMessageColor || '#ffffff'
+                this.giftColor = bSetting.giftColor || '#a6c0e8'
             },
             saveSetting() {
-                this.$bSetting.set('clientHeight', this.clientHeight)
-                this.$bSetting.set('clientWidth', this.clientWidth)
-                this.$bSetting.set('posX', this.posX)
-                this.$bSetting.set('posY', this.posY)
-                this.$bSetting.set('medalVisible', this.medalVisible)
-                this.$bSetting.set('effectFlag', this.effectFlag)
-                this.$bSetting.set('joinShow', this.joinShow)
-                this.$bSetting.set('bColor', this.bColor)
-                this.$bSetting.set('uNameColor', this.uNameColor)
-                this.$bSetting.set('bMessageColor', this.bMessageColor)
-                this.$bSetting.set('giftColor', this.giftColor)
-                this.$bSetting.save()
+                const bSetting = {
+                    clientHeight: this.clientHeight,
+                    clientWidth: this.clientWidth,
+                    posX: this.posX,
+                    posY: this.posY,
+                    medalVisible: this.medalVisible,
+                    effectFlag: this.effectFlag,
+                    joinShow: this.joinShow,
+                    bColor: this.bColor,
+                    uNameColor: this.uNameColor,
+                    bMessageColor: this.bMessageColor,
+                    giftColor: this.giftColor
+                }
+                // this.$bSetting.set('clientHeight', this.clientHeight)
+                // this.$bSetting.set('clientWidth', this.clientWidth)
+                // this.$bSetting.set('posX', this.posX)
+                // this.$bSetting.set('posY', this.posY)
+                // this.$bSetting.set('medalVisible', this.medalVisible)
+                // this.$bSetting.set('effectFlag', this.effectFlag)
+                // this.$bSetting.set('joinShow', this.joinShow)
+                // this.$bSetting.set('bColor', this.bColor)
+                // this.$bSetting.set('uNameColor', this.uNameColor)
+                // this.$bSetting.set('bMessageColor', this.bMessageColor)
+                // this.$bSetting.set('giftColor', this.giftColor)
+                // this.$bSetting.save()
+                this.$store.dispatch('bConfig.updateSetting', bSetting)
+                this.$store.dispatch('bConfig.persistence')
                 this.settingVisible = false
             },
             handleNumber(num) {
@@ -341,24 +408,29 @@
             dividerMove(e) {
                 if (this.dividerFlag) {
                     const y = e.y
-                    const joinHeight = this.clientHeight - y - this.dividerHeight
+                    const joinHeight = this.clientHeight - y - this.dividerHeight - this.messageBoxHeight
                     if (joinHeight >= this.joinRange[0] && joinHeight <= this.joinRange[1]) {
                         this.boxHeight = y - 36
                     } else if (joinHeight > this.joinRange[1]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[1] - 36 - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[1] - 36 - this.dividerHeight - this.messageBoxHeight
                     } else if (joinHeight < this.joinRange[0]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[0] - 36 - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[0] - 36 - this.dividerHeight - this.messageBoxHeight
                     }
                 }
             },
             initCache() {
-                this.cacheOptions = this.$cache.get('liveRoom')
+                // this.cacheOptions = this.$cache.get('liveRoom')
+                this.cacheOptions = JSON.parse(JSON.stringify(this.state.Cache['liveRoom']))
                 this.cacheGroups[0].children = this.cacheOptions
             },
             cacheChanged() {
                 this.roomTemp = this.cacheTemp
             },
             toggleConnect() {
+                if (!this.loggedIn) {
+                    this.addHeadLog('未登录', 1)
+                    return
+                }
                 if (this.$ws.connected) {
                     this.$ws.close()
                 } else {
@@ -379,6 +451,12 @@
             saveAndConnect() {
                 let this_ = this
                 this_.connectFlag = true
+                if (!this.loggedIn) {
+                    this.addHeadLog('未登录', 1)
+                    this.dialogVisible = false
+                    this.connectFlag = false
+                    return
+                }
                 if (this.roomTemp === 0) {
                     this.addHeadLog('请输入正确的房间号码', 1)
                     this.dialogVisible = false
@@ -386,22 +464,24 @@
                 } else {
                     this.ipcRenderer.send('barrage-open')
                     if (this.roomTemp === this.$ws.roomId && this.$ws.connected) return
+                    let roomInfo = {}
                     this.$api.getRealRoomInfo(this.roomTemp).then(res => {
-                        this_.roomInfo = res
+                        console.log(res, this_.userInfo)
+                        roomInfo = res
                         this_.roomTemp = res.roomId
-                        if (this_.roomInfo.roomId !== 0) {
-                            this_.$ws.open(this_.roomInfo.roomId)
-                            if (this_.roomInfo.uid !== this_.userInfo.uid)
-                                this_.saveCache(this_.roomInfo)
+                        if (roomInfo.roomId !== 0) {
+                            this_.$ws.open(roomInfo.roomId)
+                            if (roomInfo.uid !== this_.userInfo.uid)
+                                this_.saveCache(roomInfo)
                             this_.emptyBarrageAndJoin()
-                            this_.$api.getLastTenBarrage(this_.roomInfo.roomId).then(res => {
+                            this_.$api.getLastTenBarrage(roomInfo.roomId).then(res => {
                                 for (const r of res) {
                                     this_.addBarrage(r)
                                 }
                             }).catch(e => {
                                 this_.addHeadLog(e, 1)
                             })
-                            this_.$api.getAvatarContentByUid(this_.roomInfo.uid).then(res => {
+                            this_.$api.getAvatarContentByUid(roomInfo.uid).then(res => {
                                 this_.avatar = res
                             }).catch(() => {
                                 this_.avatar = noface
@@ -409,6 +489,7 @@
                         }
                         this_.dialogVisible = false
                         this_.connectFlag = false
+                        this_.$store.dispatch('Info.updateInfoByKey', {key: 'room', data: roomInfo})
                     }).catch(e => {
                         this.addHeadLog(e, 1)
                         this_.dialogVisible = false
@@ -785,24 +866,32 @@
                     this.pop = num
                 })
                 this.$ws.event.on('start', () => {
-                    this.roomInfo.status = 1
+                    const roomInfo = JSON.parse(JSON.stringify(this.roomInfo))
+                    roomInfo.status = 1
+                    this.$store.dispatch('Info.updateInfoByKey', {key: 'room', data: roomInfo})
                     this.addHeadLog('直播开始了')
-                    this.ipcRenderer.send('update-live-status', this.roomInfo)
+                    this.ipcRenderer.send('update-live-status', roomInfo)
                 })
                 this.$ws.event.on('stop', () => {
-                    this.roomInfo.status = 0
+                    const roomInfo = JSON.parse(JSON.stringify(this.roomInfo))
+                    roomInfo.status = 0
+                    this.$store.dispatch('Info.updateInfoByKey', {key: 'room', data: roomInfo})
                     this.addHeadLog('直播已结束')
-                    this.ipcRenderer.send('update-live-status', this.roomInfo)
+                    this.ipcRenderer.send('update-live-status', roomInfo)
                 })
                 this.$ws.event.on('change', (data) => {
                     if (this.roomInfo.title !== data.title) {
                         this.addHeadLog('直播标题修改')
-                        this.roomInfo.title = data.title
+                        const roomInfo = JSON.parse(JSON.stringify(this.roomInfo))
+                        roomInfo.title = data.title
+                        this.$store.dispatch('Info.updateInfoByKey', {key: 'room', data: roomInfo})
                     }
                     if (this.roomInfo.areaId !== data.area_id) {
                         this.addHeadLog(`直播分区修改:[${data['parent_area_name']}] ${data['area_name']}`)
-                        this.roomInfo.areaId = data.area_id
-                        this.roomInfo.areaName = data['area_name']
+                        const roomInfo = JSON.parse(JSON.stringify(this.roomInfo))
+                        roomInfo.areaId = data.area_id
+                        roomInfo.areaName = data['area_name']
+                        this.$store.dispatch('Info.updateInfoByKey', {key: 'room', data: roomInfo})
                     }
                 })
                 this.$ws.event.on('message', (data) => {
@@ -839,8 +928,10 @@
                     uid: rInfo.uid,
                     label: `[${rInfo.roomId}] ${rInfo.uname}`
                 })
-                this.$cache.set('liveRoom', this.cacheOptions)
-                this.$cache.save()
+                // this.$cache.set('liveRoom', this.cacheOptions)
+                // this.$cache.save()
+                this.$store.dispatch('Cache.updateCache', {type: 'liveRoom', data: this.cacheOptions})
+                this.$store.dispatch('Cache.persistence')
                 this.cacheGroups[0].children = this.cacheOptions
             },
             emptyBarrageAndJoin() {
@@ -851,20 +942,21 @@
             handleResize(size) {
                 if (size) this.clientHeight = size.height
                 if (!this.joinShow) {
-                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : 36)
+                    this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight))
                 } else {
-                    const joinHeight = this.clientHeight - this.boxHeight - this.dividerHeight
+                    const joinHeight = this.clientHeight - this.boxHeight - this.dividerHeight - this.messageBoxHeight
                     if (joinHeight < this.joinRange[0]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[0] - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[0] - this.dividerHeight - this.messageBoxHeight
                     } else if (joinHeight > this.joinRange[1]) {
-                        this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight
+                        this.boxHeight = this.clientHeight - this.joinRange[1] - this.dividerHeight - this.messageBoxHeight
                     }
                 }
                 if (size) this.clientWidth = size.width
             },
-            async handleRightClick() {
+            async handleRightClick({x, y}) {
+                console.log(x, y)
                 const this_ = this
-                if (this.roomInfo.roomId !== 0) {
+                if (this.roomInfo.roomId !== 0 && this.connected) {
                     this.getRoomStream(this.roomInfo.roomId).then(ops => {
                         // console.log(ops)
                         ops.forEach(obj => {
@@ -874,7 +966,7 @@
                                     i: o.index,
                                     click: function () {
                                         this_.getRoomStream(this_.roomInfo.roomId, o.qn).then(options => {
-                                            console.log(options)
+                                            // console.log(options)
                                             let url = ''
                                             options.some(obj1 => {
                                                 return obj1.submenu.some(o1 => {
@@ -887,6 +979,8 @@
                                             })
                                             cp.exec('clip').stdin.end(iconv.encode(url, 'gbk'));
                                             this_.addHeadLog('已复制直播流地址到剪贴板')
+                                            // this_.ipcRenderer.send('open-pot-player')
+                                            this_.ipcRenderer.send('open-by-player', url)
                                         }).catch(e => {
                                             this_.addHeadLog(e, 1)
                                         })
@@ -895,10 +989,12 @@
                             })
                         })
                         const menu = Menu.buildFromTemplate(ops)
-                        menu.popup(remote.getCurrentWindow());
+                        menu.popup({window: remote.getCurrentWindow(), x, y});
                     }).catch(e => {
                         this_.addHeadLog(e, 1)
                     })
+                } else {
+                    this.addHeadLog('未连接至直播', 1)
                 }
             },
             getRoomStream(roomId, qn) {
@@ -906,7 +1002,7 @@
                 return new Promise((resolve, reject) => {
                     const ops = []
                     this.$api.getRoomLiveInfo({cid: roomId, qn: qn}).then(res => {
-                        console.log(res)
+                        // console.log(res)
                         if (res.live_status !== 1)
                             reject('直播未开始')
                         const stream = res.playurl_info.playurl.stream
@@ -944,7 +1040,7 @@
                                                 codec.url_info.map((o3) => {
                                                     const sub = {
                                                         label: index === 0 ? '主线路' : `备线路${index}`,
-                                                        submenu: qns.map((o4, i1)=> {
+                                                        submenu: qns.map((o4, i1) => {
                                                             return {
                                                                 label: o4.label,
                                                                 index: index * qns.length + i1,
@@ -960,7 +1056,7 @@
                                         })
                                     })
                                 })
-                                console.log(ops)
+                                // console.log(ops)
                                 resolve(ops)
                             } catch (e) {
                                 // this.addHeadLog('获取直播流失败', 1)
@@ -975,12 +1071,35 @@
                         reject(e)
                     })
                 })
-            }
+            },
+            sendBarrage() {
+                if (this.message === '') return
+                if (!this.connected) {
+                    this.addBarrage('请连接到直播间后再发送弹幕', 1)
+                    return
+                }
+                if (this.message.length > 30) {
+                    this.addHeadLog('字数超过限制', 1)
+                    return
+                }
+                const token = this.register.token
+                const cookie = this.register.cookie
+                this.messageSending = true
+                this.$api.sendBiliBarrage(this.message, this.roomInfo.roomId, token, cookie).then(res => {
+                    this.message = ''
+                    this.addHeadLog(res)
+                    this.messageSending = false
+                }).catch(e => {
+                    this.addHeadLog(e, 1)
+                    this.messageSending = false
+                })
+            },
         },
         created() {
             const this_ = this
             this.initCache()
             this.ipcRenderer.on('resize', (e, size) => {
+                // console.log(size)
                 this_.handleResize(size)
             })
             this.ipcRenderer.on('move', (e, pos) => {
@@ -998,21 +1117,21 @@
                 this.ipcRenderer.send('get-pos')
             else
                 this.ipcRenderer.send('update-pos', [this.posX, this.posY])
-            this.ipcRenderer.on('updateUserInfo', (e, uInfo) => {
-                if (!uInfo) return
-                this_.userInfo = uInfo
-                this_.roomTemp = this_.userInfo.roomId
-                this_.cacheGroups[1].children = [{
-                    value: uInfo.roomId,
-                    uname: uInfo.uname,
-                    uid: uInfo.uid,
-                    label: `[${uInfo.roomId}] ${uInfo.uname}`
-                }]
-                for (const elem of document.getElementsByClassName('barrage-p')) {
-                    elem.setAttribute('class', parseInt(elem.getAttribute('uid')) === this_.userInfo.uid ? 'barrage-p barrage-self' : 'barrage-p')
-                }
-            })
-            this.ipcRenderer.send('update-user-info')
+            // this.ipcRenderer.on('updateUserInfo', (e, uInfo) => {
+            //     if (!uInfo) return
+            //     this_.userInfo = uInfo
+            //     this_.roomTemp = this_.userInfo.roomId
+            //     this_.cacheGroups[1].children = [{
+            //         value: uInfo.roomId,
+            //         uname: uInfo.uname,
+            //         uid: uInfo.uid,
+            //         label: `[${uInfo.roomId}] ${uInfo.uname}`
+            //     }]
+            //     for (const elem of document.getElementsByClassName('barrage-p')) {
+            //         elem.setAttribute('class', parseInt(elem.getAttribute('uid')) === this_.userInfo.uid ? 'barrage-p barrage-self' : 'barrage-p')
+            //     }
+            // })
+            // this.ipcRenderer.send('update-user-info')
             this.ipcRenderer.on('updateOnTop', (e, flag) => {
                 this.onTop = flag
             })
@@ -1040,18 +1159,17 @@
             }
             this.ipcRenderer.on('connectWsSelf', (e, uInfo) => {
                 if (this.$ws.connected) {
-                    if (this.$ws.roomId !== uInfo.roomId) {
+                    if (this.$ws.roomId !== this.userInfo.roomId) {
                         this.$ws.close()
                     } else {
                         return
                     }
                 }
-                this.roomTemp = uInfo.roomId
+                this.roomTemp = this.userInfo.roomId
                 this.saveAndConnect()
             })
-            this.ipcRenderer.on('disconnectWsSelf', (e, uInfo) => {
-                console.log(uInfo)
-                if (this.$ws.connected && this.$ws.roomId === uInfo.roomId)
+            this.ipcRenderer.on('disconnectWsSelf', () => {
+                if (this.$ws.connected && this.$ws.roomId === this.userInfo.roomId)
                     this.$ws.close()
             })
             //     barrage-sc-uname:hover,
@@ -1192,6 +1310,59 @@
         overflow-y: auto;
     }
 
+    .barrage-send-message-box {
+        width: 100%;
+        height: 30px;
+        line-height: 24px;
+        padding: 0;
+        box-sizing: border-box;
+        /*border-radius: 8px;*/
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        box-shadow: #19b32c;
+    }
+
+    .barrage-send-message-box >>> .el-input {
+        border-radius: 8px 0 0 8px;
+        overflow: hidden;
+        width: calc(100% - 60px);
+        height: 28px;
+    }
+
+    .barrage-send-message-box >>> input {
+        line-height: 24px;
+        height: 28px;
+        border-radius: 8px 0 0 8px;
+        padding: 0 18px 0 4px;
+        font-size: 14px;
+        font-family: "Microsoft YaHei", sans-serif;
+        border-right: none;
+    }
+
+    .barrage-send-message-box .message-limit {
+        display: block;
+        position: absolute;
+        height: 24px;
+        width: 40px;
+        bottom: -4px;
+        right: 62px;
+        line-height: 24px;
+        font-size: 12px;
+        text-align: right;
+        user-select: none;
+        pointer-events: none;
+        color: #409EFF;
+    }
+
+    .barrage-send-message-box .submit-message {
+        width: 60px;
+        display: inline-block;
+        border-radius: 0 8px 8px 0;
+        font-family: "Microsoft YaHei", sans-serif;
+        padding: 0 2px;
+    }
+
     .live-avatar-model {
         position: absolute;
         height: 28px;
@@ -1231,6 +1402,7 @@
 
     .barrage-connect-input >>> input {
         font-family: "Microsoft YaHei", sans-serif;
+        text-align: left;
     }
 
     >>> .barrage-p {

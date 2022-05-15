@@ -4,18 +4,18 @@
                     @windowClose="windowClose"></header-box>
         <div class="main-box">
             <div class="main-user-box" v-loading="userLoading">
-                <img class="user-avatar" :src="avatar">
+                <img class="user-avatar" :src="userInfo.avatar||noface">
                 <div class="user-info">
                     <el-row class="user-info-item" style="margin-bottom: 4px">
-                        <span class="user-name">{{userInfo.uname}}</span>
-                        <span :class="'user-level level-'+userInfo.level">Level {{userInfo.level}}</span>
+                        <span class="user-name">{{userInfo.uname||'userName'}}</span>
+                        <span :class="'user-level level-'+(userInfo.level||'0')">Level {{userInfo.level||'0'}}</span>
                     </el-row>
                     <el-row class="user-info-item" style="margin-bottom: 4px">
                         <span class="user-stat">
-                            关注 :<span :title="userInfo.follow">{{handleNumber(userInfo.follow)}}</span>
+                            关注 :<span :title="userInfo.follow">{{handleNumber(userInfo.follow||0)}}</span>
                         </span>
                         <span class="user-stat">
-                            粉丝 :<span :title="userInfo.fans">{{handleNumber(userInfo.fans)}}</span>
+                            粉丝 :<span :title="userInfo.fans">{{handleNumber(userInfo.fans||0)}}</span>
                         </span>
                     </el-row>
                     <el-row class="user-info-item">
@@ -25,7 +25,6 @@
                     </el-row>
                 </div>
             </div>
-
             <div class="box-live-info" v-loading="liveLoading">
                 <div class="live-info-item margin-b-5">
                     <span class="live-info-label">地址</span>
@@ -79,10 +78,11 @@
                          :status="downloadStatus"></el-progress>
         </div>
 
-        <el-dialog :visible.sync="dialogVisible" fullscreen :title="editTitle?'修改直播标题':'修改直播区域'" center
+        <el-dialog :visible.sync="dialogVisible" center :title="editTitle?'修改直播标题':'修改直播区域'" width="100%"
                    @closed="dialogClosed">
             <el-input v-if="editTitle" class="live-info-input" v-model="titleTemp"></el-input>
             <el-select v-else class="live-info-input" v-model="areaIdTemp" filterable clearable ref="area"
+                       popper-class="live-info-select-inner" :popper-append-to-body="false"
                        :filter-method="areaFilter" @change="initAreaOptions">
                 <el-option v-for="item of areaOptions" :key="item.value" :label="item.label"
                            :value="item.value"></el-option>
@@ -100,23 +100,23 @@
         </el-dialog>
 
         <el-drawer :visible.sync="settingVisible" direction="btt" size="360px" :with-header="false" center
-                   @closed="initSettingForm"
+                   @closed="initRegisterForm"
                    class="main-setting-box">
             <el-tabs v-model="activeTab" type="border-card" :stretch="true">
                 <el-tab-pane label="用户信息" name="user">
                     <div class="setting-item">
                         <span class="setting-item-label">Uid</span>
-                        <el-input class="setting-item-input" v-model="settingForm.uid"></el-input>
+                        <el-input class="setting-item-input" v-model="registerForm.uid"></el-input>
                     </div>
                     <div class="setting-item">
                         <span class="setting-item-label">Token/Csrf</span>
                         <el-input type="textarea" class="setting-item-input" :rows="2" resize="none"
-                                  v-model="settingForm.token"></el-input>
+                                  v-model="registerForm.token"></el-input>
                     </div>
                     <div class="setting-item">
                         <span class="setting-item-label">Cookie</span>
                         <el-input type="textarea" class="setting-item-input" :rows="5" resize="none"
-                                  v-model="settingForm.cookie"></el-input>
+                                  v-model="registerForm.cookie"></el-input>
                     </div>
                 </el-tab-pane>
                 <el-tab-pane label="快捷键" name="shortcut">
@@ -241,29 +241,30 @@
     export default {
         name: "Main",
         data() {
+            const state = this.$store.state
             return {
+                state,
                 icon: live,
                 title: 'Bilive Manager',
                 userLoading: false,
-                uid: "",
-                token: "",
-                cookie: "",
-                avatar: noface,
-                userInfo: {
-                    uname: 'userName',
-                    level: 0,
-                    follow: 0,
-                    fans: 0
-                },
+                noface: noface,
+                // avatar: noface,
+                // userInfo: {
+                //     uname: 'userName',
+                //     avatar: noface,
+                //     level: 0,
+                //     follow: 0,
+                //     fans: 0
+                // },
                 liveLoading: false,
-                liveInfo: {
-                    link: '-',
-                    title: '-',
-                    areaId: 0,
-                    status: 0,
-                    roomId: 0,
-                    areaName: '-'
-                },
+                // liveInfo: {
+                //     link: '-',
+                //     title: '-',
+                //     areaId: 0,
+                //     status: 0,
+                //     roomId: 0,
+                //     areaName: '-'
+                // },
                 liveRtmp: {
                     rtmp: null,
                     code: null
@@ -271,14 +272,14 @@
                 liveArea: {},
                 liveAreaOptions: {},
                 dialogVisible: false,
-                editTitle: '',
+                editTitle: false,
                 titleTemp: '',
                 areaIdTemp: 0,
                 areaOptions: [],
                 cacheTemp: '',
                 cacheOptions: [],
                 settingVisible: false,
-                settingForm: {
+                registerForm: {
                     uid: '',
                     token: '',
                     cookie: ''
@@ -310,55 +311,42 @@
         computed: {
             loadFail() {
                 return this.liveInfo.roomId === 0
+            },
+            uid() {
+                return this.state['mConfig'].register.uid
+            },
+            token() {
+                return this.state['mConfig'].register.token
+            },
+            cookie() {
+                return this.state['mConfig'].register.cookie
+            },
+            userInfo() {
+                return this.state['Info'].user
+            },
+            liveInfo() {
+                return this.state['Info'].live
             }
         },
         methods: {
-            initConfig() {
-                this.uid = this.$token.get('uid')
-                this.token = this.$token.get('token')
-                this.cookie = this.$token.get('cookie')
-                this.ipcRenderer.send('save-setting', {
-                    uid: this.uid, token: this.token, cookie: this.cookie
-                })
-            },
             initConfigMain(isCreated = false) {
-                this.settingMain.dontAskMe = this.$mSetting.get('dontAskMe') || false
-                this.settingMain.closeAction = this.$mSetting.get('closeAction') || "toClose"
-                this.settingMain.liveToConnect = this.$mSetting.get('liveToConnect') || false
-                this.settingMain.liveToDisconnect = this.$mSetting.get('liveToDisconnect') || false
-                this.settingMain.runForUpdate = this.$mSetting.get('runForUpdate') || false
-                this.settingMain.updateSource = this.$mSetting.get('updateSource') || 'gitee'
-                this.settingMain.sendMsgShortcut = this.$mSetting.get('sendMsgShortcut') || ['', '', '', '无']
+                this.settingMain = this.state['mConfig'].setting
                 this.shortcutOps.sendMsg = Array.from(this.settingMain.sendMsgShortcut)
+                this.shortcutOps.clickThrough = Array.from(this.settingMain.clickThroughShortcut)
                 if (isCreated) {
                     this.ipcRenderer.send('update-shortcut-sendMsg', {
                         old: '无',
                         new_: this.settingMain.sendMsgShortcut[3]
                     })
-                }
-                this.settingMain.clickThroughShortcut = this.$mSetting.get('clickThroughShortcut') || ['', '', '', '无']
-                this.shortcutOps.clickThrough = Array.from(this.settingMain.clickThroughShortcut)
-                if (isCreated) {
                     this.ipcRenderer.send('update-shortcut-clickThrough', {
                         old: '无',
                         new_: this.settingMain.clickThroughShortcut[3]
                     })
                 }
-                this.ipcRenderer.send('save-setting-main', {
-                    closeAction: this.settingMain.closeAction,
-                    dontAskMe: this.settingMain.dontAskMe
-                })
             },
             saveConfigMain() {
-                this.$mSetting.set('dontAskMe', this.settingMain.dontAskMe)
-                this.$mSetting.set('closeAction', this.settingMain.closeAction)
-                this.$mSetting.set('liveToConnect', this.settingMain.liveToConnect)
-                this.$mSetting.set('liveToDisconnect', this.settingMain.liveToDisconnect)
-                this.$mSetting.set('runForUpdate', this.settingMain.runForUpdate)
-                this.$mSetting.set('updateSource', this.settingMain.updateSource)
-                this.$mSetting.set('sendMsgShortcut', this.settingMain.sendMsgShortcut)
-                this.$mSetting.set('clickThroughShortcut', this.settingMain.clickThroughShortcut)
-                this.$mSetting.save()
+                this.$store.dispatch('mConfig.updateSetting', this.settingMain)
+                this.$store.dispatch('mConfig.persistence')
                 this.initConfigMain()
             },
             windowMinimize() {
@@ -380,18 +368,19 @@
                 }
             },
             initUserInfo() {
-                this.userInfo = {
+                const userInfo = {
                     uid: 0,
                     uname: 'userName',
                     level: 0,
                     follow: 0,
                     fans: 0,
-                    roomId: 0
+                    roomId: 0,
+                    avatar: noface
                 }
-                this.avatar = noface
+                this.$store.dispatch('Info.updateInfoByKey', {key: 'user', data: userInfo})
             },
             initLiveInfo() {
-                this.liveInfo = {
+                const liveInfo = {
                     link: '-',
                     title: '-',
                     areaId: 0,
@@ -399,9 +388,10 @@
                     roomId: 0,
                     areaName: '-'
                 }
+                this.$store.dispatch('Info.updateInfoByKey', {key: 'live', data: liveInfo})
             },
-            initSettingForm() {
-                this.settingForm = {
+            initRegisterForm() {
+                this.registerForm = {
                     uid: this.uid,
                     token: this.token,
                     cookie: this.cookie
@@ -413,23 +403,25 @@
             async getUserInfo() {
                 this.userLoading = true
                 const this_ = this
+                let userInfo = {}
                 await this.$api.getUserInfoByCookie(this.uid, this.cookie).then(res => {
-                    this_.userInfo.uid = parseInt(this_.uid)
-                    this_.userInfo.uname = res.name
-                    this_.userInfo.level = res.level
-                    this_.userInfo.roomId = res['live_room'] ? res['live_room']['roomid'] : 0
+                    userInfo.uid = parseInt(this_.uid)
+                    userInfo.uname = res.name
+                    userInfo.level = res.level
+                    userInfo.roomId = res['live_room'] ? res['live_room']['roomid'] : 0
                     this.$api.getUserStatByCookie(this.uid, this.cookie).then(r => {
-                        this_.userInfo.follow = r['following']
-                        this_.userInfo.fans = r['follower']
+                        userInfo.follow = r['following']
+                        userInfo.fans = r['follower']
                     }).catch(() => {
-                        this_.userInfo.follow = 0
-                        this_.userInfo.fans = 0
+                        userInfo.follow = 0
+                        userInfo.fans = 0
                     })
                     this.$api.getAvatarContentByUrl(res.face).then(r => {
-                        this_.avatar = r
+                        userInfo.avatar = r
                     }).catch(() => {
-                        this_.avatar = noface
+                        userInfo.avatar = noface
                     })
+                    this.$store.dispatch('Info.updateInfoByKey', {key: 'user', data: userInfo})
                     this.getLiveInfo()
                 }).catch(e => {
                     this.addHeadLog(`加载失败:${e}, 请检查配置`, 1)
@@ -477,26 +469,28 @@
             },
             async getLiveInfo(flag = true) {
                 this.liveLoading = true
+                let liveInfo = {}
                 await this.$api.getLiveInfoByCookie(this.cookie).then(res => {
-                    this.liveInfo = res
-                    if (this.liveArea[this.liveInfo.areaId]) {
-                        this.liveInfo.areaName = this.liveArea[this.liveInfo.areaId].label
+                    liveInfo = res
+                    if (this.liveArea[liveInfo.areaId]) {
+                        liveInfo.areaName = this.liveArea[liveInfo.areaId].label
                         this.areaIdTemp = res.areaId
                     } else {
-                        this.liveInfo.areaName = res.areaId > 0 ? '分区已被隐藏' : '未选择分区'
-                        this.liveInfo.areaId = ''
+                        liveInfo.areaName = res.areaId > 0 ? '分区已被隐藏' : '未选择分区'
+                        liveInfo.areaId = ''
                         this.areaIdTemp = ''
                     }
                     this.titleTemp = res.title
                     if (flag) {
                         this.ipcRenderer.send('toggle-live-status', this.liveInfo.status)
-                        if (this.liveInfo.status && this.settingMain.liveToConnect) this.ipcRenderer.send('connect-ws-self')
+                        if (liveInfo.status && this.settingMain.liveToConnect) this.ipcRenderer.send('connect-ws-self')
                     }
-                    if (this.liveInfo.status === 1) {
+                    if (liveInfo.status === 1) {
                         this.$api.getLiveRtmpByCookie(res.roomId, this.cookie).then(r => {
                             this.liveRtmp = r
                         })
                     }
+                    this.$store.dispatch('Info.updateInfoByKey', {key: 'live', data: liveInfo})
                 }).catch(e => {
                     this.addHeadLog(e.message)
                     this.initLiveInfo()
@@ -505,7 +499,7 @@
             },
             infoSetting() {
                 this.settingVisible = true
-                this.initSettingForm()
+                this.initRegisterForm()
             },
             toggleBarrageWindow() {
                 this.ipcRenderer.send('toggle-barrage')
@@ -558,20 +552,22 @@
                 }
                 this.liveLoading = true
                 let this_ = this
+                const liveInfo = JSON.parse(JSON.stringify(this.liveInfo))
                 await this.$api.updateLiveStatus(this.liveInfo.roomId, this.liveInfo.status, this.liveInfo.areaId, this.token, this.cookie).then(async (res) => {
                     if (res) {
-                        this_.liveInfo.status = Math.abs(this_.liveInfo.status - 1)
-                        this_.addHeadLog(this_.liveInfo.status ? '开播成功' : '下播成功')
-                        this_.ipcRenderer.send('toggle-live-status', this_.liveInfo.status)
-                        this_.icon = this_.liveInfo.status ? liveOn : live
-                        if (this_.liveInfo.status === 1) {
-                            await this_.$api.getLiveRtmpByCookie(this_.liveInfo.roomId, this_.cookie).then(r => {
+                        liveInfo.status = Math.abs(liveInfo.status - 1)
+                        this_.addHeadLog(liveInfo.status ? '开播成功' : '下播成功')
+                        this_.ipcRenderer.send('toggle-live-status', liveInfo.status)
+                        this_.icon = liveInfo.status ? liveOn : live
+                        if (liveInfo.status === 1) {
+                            await this_.$api.getLiveRtmpByCookie(liveInfo.roomId, this_.cookie).then(r => {
                                 this_.liveRtmp = r
                             })
                             if (this_.settingMain.liveToConnect) this_.ipcRenderer.send('connect-ws-self')
                         } else {
                             if (this_.settingMain.liveToDisconnect) this_.ipcRenderer.send('disconnect-ws-self')
                         }
+                        await this_.$store.dispatch('Info.updateInfoByKey', {key: 'live', data: liveInfo})
                     }
                 }).catch(e => {
                     this.addHeadLog(e, 1)
@@ -579,12 +575,13 @@
                 this.liveLoading = false
             },
             updateLiveTitle() {
+                // const liveInfo = JSON.parse(JSON.stringify(this.liveInfo))
                 if (this.titleTemp === this.liveInfo.title) {
                     this.dialogVisible = false
                     return
                 }
-                this.liveInfo.title = this.titleTemp
-                this.$api.updateLiveTitle(this.liveInfo.roomId, this.liveInfo.title, this.token, this.cookie).then(res => {
+                // liveInfo.title = this.titleTemp
+                this.$api.updateLiveTitle(this.liveInfo.roomId, this.titleTemp, this.token, this.cookie).then(res => {
                     this.saveCache()
                     this.dialogVisible = false
                     if (res) {
@@ -600,8 +597,8 @@
                     this.dialogVisible = false
                     return
                 }
-                this.liveInfo.areaId = this.areaIdTemp
-                this.$api.updateLiveArea(this.liveInfo.roomId, this.liveInfo.areaId, this.token, this.cookie).then(res => {
+                // this.liveInfo.areaId = this.areaIdTemp
+                this.$api.updateLiveArea(this.liveInfo.roomId, this.areaIdTemp, this.token, this.cookie).then(res => {
                     this.saveCache()
                     this.dialogVisible = false
                     if (res) {
@@ -613,25 +610,29 @@
                 })
             },
             closeSetting() {
-                this.initConfig()
+                // this.initConfig()
                 this.initConfigMain()
                 this.settingVisible = false
             },
             saveSetting() {
-                this.$token.set('uid', this.settingForm.uid)
-                this.$token.set('token', this.settingForm.token)
-                this.$token.set('cookie', this.settingForm.cookie)
-                this.$token.save()
-                this.initConfig()
+                // this.$token.set('uid', this.registerForm.uid)
+                // this.$token.set('token', this.registerForm.token)
+                // this.$token.set('cookie', this.registerForm.cookie)
+                // this.$token.save()
+                // this.initConfig()
+
+                this.$store.dispatch('mConfig.updateRegister', this.registerForm)
+                this.$store.dispatch('mConfig.persistence')
+                this.saveConfigMain()
                 this.settingVisible = false
                 this.getUserInfo()
-                this.saveConfigMain()
             },
             addHeadLog(message, isError = false) {
                 this.$refs.logs.logCountdown(message, isError)
             },
             initCache() {
-                this.cacheOptions = this.$cache.get(this.editTitle ? 'liveTitle' : 'liveArea')
+                // this.cacheOptions = this.$cache.get(this.editTitle ? 'liveTitle' : 'liveArea')
+                this.cacheOptions = JSON.parse(JSON.stringify(this.state.Cache[this.editTitle ? 'liveTitle' : 'liveArea']))
             },
             cacheChanged() {
                 if (this.editTitle) {
@@ -652,8 +653,8 @@
                         value: this.titleTemp,
                         label: this.titleTemp
                     })
-                    this.$cache.set('liveTitle', this.cacheOptions)
-                    this.$cache.save()
+                    // this.$cache.set('liveTitle', this.cacheOptions)
+                    // this.$cache.save()
                 } else {
                     const index = this.cacheOptions.findIndex((o) => o.value === this.areaIdTemp)
                     if (index > -1) {
@@ -662,9 +663,14 @@
                         this.cacheOptions.pop()
                     }
                     this.cacheOptions.unshift(this.areaOptions.find((o) => o.value === this.areaIdTemp))
-                    this.$cache.set('liveArea', this.cacheOptions)
-                    this.$cache.save()
+                    // this.$cache.set('liveArea', this.cacheOptions)
+                    // this.$cache.save()
                 }
+                this.$store.dispatch('Cache.updateCache', {
+                    type: this.editTitle ? 'liveTitle' : 'liveArea',
+                    data: this.cacheOptions
+                })
+                this.$store.dispatch('Cache.persistence')
             },
             checkUpdate(flag = false) {
                 let this_ = this
@@ -745,7 +751,7 @@
             }
         },
         created() {
-            this.initConfig()
+            // this.initConfig()
             this.initConfigMain(1)
             this.getLiveArea()
             this.getUserInfo()
@@ -987,6 +993,10 @@
     .live-info-input {
         width: 100%;
         text-align: center;
+    }
+
+    >>> .live-info-select-inner .el-select-dropdown__wrap {
+        max-height: 200px;
     }
 
     .link-ellipsis >>> .el-link--inner {

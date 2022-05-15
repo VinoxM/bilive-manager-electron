@@ -1,13 +1,14 @@
 import {ipcMain, BrowserWindow, globalShortcut} from 'electron'
 
 const winURL = process.env.NODE_ENV === 'development'
-    ? `http://localhost:9080#/close`
+    ? `http://localhost:9080/#/close`
     : `file://${__dirname}/index.html#/close`
 
 export const close = {
-    closeWindow: null,
+    url: winURL,
+    window: null,
     createWindow: (main) => {
-        close.closeWindow = new BrowserWindow({
+        close.window = new BrowserWindow({
             useContentSize: true,
             height: 135,
             width: 280,
@@ -23,12 +24,12 @@ export const close = {
             modal: true
         })
 
-        let closeWindow = close.closeWindow
+        let closeWindow = close.window
 
         closeWindow.loadURL(winURL)
 
         closeWindow.on('closed', () => {
-            close.closeWindow = null
+            close.window = null
         })
 
         closeWindow.hide()
@@ -39,7 +40,7 @@ export const close = {
 
         ipcMain.on('save-close-action', (e, args)=>{
             closeWindow.hide()
-            main.mainWindow.webContents.send('saveCloseAction', args)
+            main.window.webContents.send('saveCloseAction', args)
         })
     }
 }

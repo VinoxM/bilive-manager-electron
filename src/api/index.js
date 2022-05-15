@@ -279,6 +279,16 @@ export default {
             dolby: 5
         })
         return res.code === 0 ? res.data : Promise.reject(res.message)
+    },
+    getUserCardByUid: async (uid, cookie) =>{
+        const url = 'http://api.bilibili.com/x/web-interface/card'
+        const params = {
+            mid:uid,
+            photo:1
+        }
+        const headers = {cookie}
+        const res = await http.post(url, params, headers)
+
     }
 }
 

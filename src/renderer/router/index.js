@@ -26,6 +26,11 @@ export default new Router({
       component: require('@/components/Close').default
     },
     {
+      path: '/player',
+      name: 'player',
+      component: require('@/components/Player').default
+    },
+    {
       path: '*',
       redirect: '/'
     }

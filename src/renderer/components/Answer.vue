@@ -17,24 +17,35 @@
     export default {
         name: "Answer",
         data() {
+            const state = this.$store.state
             return {
+                state,
                 message: '',
-                roomInfo: {
-                    roomId: 0
-                },
-                setting: {
-                    uid: '',
-                    token: '',
-                    cookie: ''
-                }
+                focus: null
+                // roomInfo: {
+                //     roomId: 0
+                // },
+                // setting: {
+                //     uid: '',
+                //     token: '',
+                //     cookie: ''
+                // }
+            }
+        },
+        computed:{
+            register(){
+                return this.state['mConfig'].register
+            },
+            roomInfo(){
+                return this.state['Info'].room
             }
         },
         methods: {
             sendBarrage() {
                 if (this.message === '')
                     return
-                const token = this.setting.token
-                const cookie = this.setting.cookie
+                const token = this.register.token
+                const cookie = this.register.cookie
                 this.$api.sendBiliBarrage(this.message, this.roomInfo.roomId, token, cookie).then(res => {
                     this.ipcRenderer.send('add-barrage-log', res)
                     this.answerClose()
@@ -44,25 +55,26 @@
             },
             answerClose() {
                 this.message = ''
-                this.ipcRenderer.send('answer-close')
+                this.ipcRenderer.send('answer-close', this.focus)
             }
         },
         created() {
-            this.ipcRenderer.send('update-room-info')
-            this.ipcRenderer.on('updateRoomInfo', (e, rInfo) => {
-                this.roomInfo = rInfo
-            })
+            // this.ipcRenderer.send('update-room-info')
+            // this.ipcRenderer.on('updateRoomInfo', (e, rInfo) => {
+            //     this.roomInfo = rInfo
+            // })
             this.ipcRenderer.on('wsClosed', () => {
                 this.roomInfo = {roomId: 0}
                 this.answerClose()
             })
-            this.ipcRenderer.on('focusInput', () => {
+            this.ipcRenderer.on('focusInput', (_, focus) => {
+                this.focus = focus
                 this.$refs.message.focus()
             })
-            this.ipcRenderer.on('updateSetting', (e, s) => {
-                this.setting = s
-            })
-            this.ipcRenderer.send('update-setting')
+            // this.ipcRenderer.on('updateSetting', (e, s) => {
+            //     this.setting = s
+            // })
+            // this.ipcRenderer.send('update-setting')
         }
     }
 </script>

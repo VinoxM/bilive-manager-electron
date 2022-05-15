@@ -1,6 +1,10 @@
 import {app} from 'electron'
 import {createWindows, windows} from "./windows";
 
+const argv = process.argv
+
+console.log(argv)
+
 /**
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
@@ -26,7 +30,7 @@ app.on('activate', () => {
 })
 
 const shouldQuit = app.makeSingleInstance((commandLine, workingDirectory) => {
-    const mainWindow = windows.main.mainWindow
+    const mainWindow = windows.main.window
     if (mainWindow) {
         if (mainWindow.isMinimized()) mainWindow.restore()
         if (!mainWindow.isVisible()) mainWindow.show()

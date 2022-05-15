@@ -1,8 +1,8 @@
 <template>
     <div class="log-header" :style="{top: top+'px'}" v-show="currentLog!==''">
         <span>{{currentLog}}</span>
-        <div class="count-down-box">
-            <div :class="countdown?'count-down':''" :style="{backgroundColor: isError?'red':'#19b32c'}"></div>
+        <div v-if="countdown" class="count-down-box">
+            <div class="count-down" :style="{backgroundColor: isError?'red':'#19b32c'}"></div>
         </div>
     </div>
 </template>
@@ -15,9 +15,10 @@
         },
         data() {
             return {
-                countdown: 0,
+                countdown: false,
                 currentLog: '',
-                isError: false
+                isError: false,
+                timeout: null
             }
         },
         methods: {
@@ -28,13 +29,22 @@
                 this.logCountdown(msg, true)
             },
             logCountdown(msg, isErr) {
+                const this_ = this
                 this.currentLog = msg
-                this.countdown = true
-                this.isError = isErr
-                setTimeout(() => {
+                if (this.countdown) {
+                    console.log('countdown_')
                     this.countdown = false
-                    this.currentLog = ''
-                }, 2000)
+                    clearTimeout(this.timeout)
+                    this.timeout = null
+                }
+                this.$nextTick(() => {
+                    this_.countdown = true
+                    this_.isError = isErr
+                    this_.timeout = setTimeout(() => {
+                        this_.countdown = false
+                        this_.currentLog = ''
+                    }, 2000)
+                })
             }
         }
     }
@@ -79,8 +89,8 @@
 
     .count-down {
         left: 0;
-        -webkit-animation: 2s count_down;
-        animation: 2s count_down;
+        -webkit-animation: ease 2s count_down;
+        animation: ease 2s count_down;
     }
 
     @-webkit-keyframes count_down {

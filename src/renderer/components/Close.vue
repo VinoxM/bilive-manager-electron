@@ -6,10 +6,10 @@
                 <span>您点击了关闭按钮,想要</span>
             </el-row>
             <el-row class="text-align-c">
-                <el-radio v-model="closeAction" label="toClose">关闭程序</el-radio>
-                <el-radio v-model="closeAction" label="toTray">最小化到托盘</el-radio>
+                <el-radio v-model="closeAction_" label="toClose">关闭程序</el-radio>
+                <el-radio v-model="closeAction_" label="toTray">最小化到托盘</el-radio>
             </el-row>
-            <el-checkbox class="close-box-checkbox" v-model="dontAskMe" label="记住我的选择"></el-checkbox>
+            <el-checkbox class="close-box-checkbox" v-model="dontAskMe_" label="记住我的选择"></el-checkbox>
             <el-button class="close-box-btn" size="mini" icon="el-icon-check" @click="save">确定</el-button>
         </div>
     </div>
@@ -19,22 +19,32 @@
     export default {
         name: "Close",
         data() {
+            const state = this.$store.state
             return {
-                closeAction: 'toClose',
-                dontAskMe: false
+                state,
+                closeAction_: 'toClose',
+                dontAskMe_: false
+            }
+        },
+        computed:{
+            closeAction(){
+                return this.state['mConfig'].setting.closeAction
+            },
+            dontAskMe() {
+                return this.state['mConfig'].setting.dontAskMe
             }
         },
         methods: {
             save() {
-                this.ipcRenderer.send('save-close-action', {action: this.closeAction, dontAskMe: this.dontAskMe})
+                this.ipcRenderer.send('save-close-action', {action: this.closeAction_, dontAskMe: this.dontAskMe_})
             }
         },
         created() {
-            this.ipcRenderer.on('settingMainUpdate', (e, setting) => {
-                this.closeAction = setting.closeAction
-                this.dontAskMe = setting.dontAskMe
-            })
-            this.ipcRenderer.send('update-setting-main')
+            // this.ipcRenderer.on('settingMainUpdate', (e, setting) => {
+                this.closeAction_ = this.closeAction
+                this.dontAskMe_ = this.dontAskMe
+            // })
+            // this.ipcRenderer.send('update-setting-main')
         }
     }
 </script>

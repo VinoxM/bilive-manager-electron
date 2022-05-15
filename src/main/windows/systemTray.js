@@ -17,7 +17,7 @@ export const systemTray = {
                 label: '主界面',
                 type: 'normal',
                 click: (e) => {
-                    main.mainWindow.show()
+                    main.window.show()
                 }
             },
             {
@@ -26,7 +26,7 @@ export const systemTray = {
                 type: 'checkbox',
                 enabled: false,
                 click: (e) => {
-                    main.mainWindow.webContents.send('toggleLiveStatus')
+                    main.window.webContents.send('toggleLiveStatus')
                 }
             },
             {type: 'separator'},
@@ -36,9 +36,9 @@ export const systemTray = {
                 id: 'barrage',
                 click: (e) => {
                     if (e.checked)
-                        barrage.barrageWindow.show()
+                        barrage.window.show()
                     else
-                        barrage.barrageWindow.hide()
+                        barrage.window.hide()
                 }
             },
             {
@@ -46,9 +46,9 @@ export const systemTray = {
                 type: 'checkbox',
                 id: 'connect',
                 click: (e) => {
-                    if (!barrage.barrageWindow.isVisible())
-                        barrage.barrageWindow.show()
-                    barrage.barrageWindow.webContents.send('toggleWsConnect')
+                    if (!barrage.window.isVisible())
+                        barrage.window.show()
+                    barrage.window.webContents.send('toggleWsConnect')
                 }
             },
             {
@@ -57,7 +57,7 @@ export const systemTray = {
                 id: 'onTop',
                 checked: true,
                 click: (e) => {
-                    barrage.barrageWindow.webContents.send('toggleBarrageOnTop')
+                    barrage.window.webContents.send('toggleBarrageOnTop')
                 }
             },
             {
@@ -65,8 +65,8 @@ export const systemTray = {
                 type: 'checkbox',
                 id: 'clickThrough',
                 click: (e) => {
-                    barrage.barrageWindow.setIgnoreMouseEvents(e.checked)
-                    barrage.barrageWindow.webContents.send('toggleClickThrough', e.checked)
+                    barrage.window.setIgnoreMouseEvents(e.checked)
+                    barrage.window.webContents.send('toggleClickThrough', e.checked)
                 }
             },
             {type: 'separator'},
@@ -74,7 +74,7 @@ export const systemTray = {
                 label: '检查更新',
                 type: 'normal',
                 click: () => {
-                    main.mainWindow.webContents.send('checkUpdate')
+                    main.window.webContents.send('checkUpdate')
                 }
             },
             {
@@ -91,10 +91,10 @@ export const systemTray = {
         tray.setToolTip('Bilive-Manager')
         tray.setContextMenu(menu)
         tray.on('double-click', () => {
-            if (main.mainWindow.isVisible()) {
-                main.mainWindow.hide()
+            if (main.window.isVisible()) {
+                main.window.hide()
             } else
-                main.mainWindow.show()
+                main.window.show()
         })
     }
 }

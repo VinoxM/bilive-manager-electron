@@ -1,22 +1,26 @@
 import {app, BrowserWindow, ipcMain} from 'electron'
 
 const winURL = process.env.NODE_ENV === 'development'
-    ? `http://localhost:9080#/barrage`
+    ? `http://localhost:9080/#/barrage`
     : `file://${__dirname}/index.html#/barrage`
 
+const devFlag = process.argv.indexOf('--open-dev-tools') > -1 || process.argv.indexOf('--open-barrage-dev-tools') > -1
+
 export const barrage = {
-    barrageWindow: null,
+    url: winURL,
+    window: null,
     createWindow: () => {
-        barrage.barrageWindow = new BrowserWindow({
+        barrage.window = new BrowserWindow({
             useContentSize: true,
             width: 400,
             maxWidth: 450,
             minWidth: 360,
-            height: 800,
-            maxHeight: 800,
+            height: 828,
+            maxHeight: 828,
             minHeight: 500,
             webPreferences: {
-                devTools: process.env.NODE_ENV === 'development'
+                // devTools: true
+                devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             frame: false,
             transparent: true,
@@ -25,12 +29,12 @@ export const barrage = {
             maximizable: false
         })
 
-        let barrageWindow = barrage.barrageWindow
+        let barrageWindow = barrage.window
 
         barrageWindow.loadURL(winURL)
 
         barrageWindow.on('closed', () => {
-            barrage.barrageWindow = null
+            barrage.window = null
         })
 
         barrageWindow.hide()
@@ -62,5 +66,7 @@ export const barrage = {
         ipcMain.on('update-pos', (e, pos) => {
             barrageWindow.setPosition(pos[0], pos[1])
         })
+
+        barrageWindow.openDevTools({mode: 'undocked'});
     }
 }

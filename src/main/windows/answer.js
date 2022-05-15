@@ -1,13 +1,14 @@
 import {ipcMain, BrowserWindow, globalShortcut} from 'electron'
 
 const winURL = process.env.NODE_ENV === 'development'
-    ? `http://localhost:9080#/answer`
+    ? `http://localhost:9080/#/answer`
     : `file://${__dirname}/index.html#/answer`
 
 export const answer = {
-    answerWindow: null,
+    url: winURL,
+    window: null,
     createWindow: () => {
-        answer.answerWindow = new BrowserWindow({
+        answer.window = new BrowserWindow({
             useContentSize: true,
             height: 145,
             width: 280,
@@ -21,18 +22,14 @@ export const answer = {
             maximizable: false
         })
 
-        let answerWindow = answer.answerWindow
+        let answerWindow = answer.window
 
         answerWindow.loadURL(winURL)
 
         answerWindow.on('closed', () => {
-            answer.answerWindow = null
+            answer.window = null
         })
 
         answerWindow.hide()
-
-        ipcMain.on('answer-close', () => {
-            answerWindow.hide()
-        })
     }
 }

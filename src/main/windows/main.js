@@ -4,25 +4,29 @@ import path from "path";
 const fs = require('fs');
 const osHomedir = require('os-homedir');
 
+const devFlag = process.argv.indexOf('--open-dev-tools') > -1 || process.argv.indexOf('--open-main-dev-tools') > -1
+
 const winURL = process.env.NODE_ENV === 'development'
-    ? `http://localhost:9080`
-    : `file://${__dirname}/index.html`
+    ? `http://localhost:9080/#/`
+    : `file://${__dirname}/index.html#/`
 
 const live = process.env.NODE_ENV !== 'development' ? path.join(__dirname, 'static', 'live.png') : path.join('static', 'live.png')
 const liveOn = process.env.NODE_ENV !== 'development' ? path.join(__dirname, 'static', 'live-on.png') : path.join('static', 'live-on.png')
 
 export const main = {
-    mainWindow: null,
+    url: winURL,
+    window: null,
     toggleLiveIcon: (status) => {
-        main.mainWindow.setIcon(status ? liveOn : live)
+        main.window.setIcon(status ? liveOn : live)
     },
     createWindow: () => {
-        main.mainWindow = new BrowserWindow({
+        main.window = new BrowserWindow({
             useContentSize: true,
             width: 300,
             height: 400,
             webPreferences: {
-                devTools: process.env.NODE_ENV === 'development'
+                // devTools: true
+                devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             resizable: false,
             frame: false,
@@ -31,12 +35,12 @@ export const main = {
             maximizable: false
         })
 
-        let mainWindow = main.mainWindow
+        let mainWindow = main.window
 
         mainWindow.loadURL(winURL)
 
         mainWindow.on('closed', () => {
-            main.mainWindow = null
+            main.window = null
             app.exit()
         })
 
