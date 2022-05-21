@@ -121,16 +121,12 @@
 </template>
 
 <script>
-    const cp = require('child_process')
-    const iconv = require('iconv-lite')
+    import cp from 'child_process'
+    import iconv from'iconv-lite'
     import noface from '../assets/noface.jpg'
     import guard1 from '../assets/icon-guard1.png'
     import guard2 from '../assets/icon-guard2.png'
     import guard3 from '../assets/icon-guard3.png'
-
-    const {remote} = require('electron')
-    const Menu = remote.Menu
-    const MenuItem = remote.MenuItem
 
     export default {
         name: "Barrage",
@@ -959,37 +955,7 @@
                 if (this.roomInfo.roomId !== 0 && this.connected) {
                     this.getRoomStream(this.roomInfo.roomId).then(ops => {
                         // console.log(ops)
-                        ops.forEach(obj => {
-                            obj.submenu = obj.submenu.map(o => {
-                                return {
-                                    label: o.label,
-                                    i: o.index,
-                                    click: function () {
-                                        this_.getRoomStream(this_.roomInfo.roomId, o.qn).then(options => {
-                                            // console.log(options)
-                                            let url = ''
-                                            options.some(obj1 => {
-                                                return obj1.submenu.some(o1 => {
-                                                    if (o1.index === o.index) {
-                                                        url = o1.url
-                                                        return true
-                                                    }
-                                                    return false
-                                                })
-                                            })
-                                            cp.exec('clip').stdin.end(iconv.encode(url, 'gbk'));
-                                            this_.addHeadLog('已复制直播流地址到剪贴板')
-                                            // this_.ipcRenderer.send('open-pot-player')
-                                            this_.ipcRenderer.send('open-by-player', url)
-                                        }).catch(e => {
-                                            this_.addHeadLog(e, 1)
-                                        })
-                                    }
-                                }
-                            })
-                        })
-                        const menu = Menu.buildFromTemplate(ops)
-                        menu.popup({window: remote.getCurrentWindow(), x, y});
+                        this_.ipcRenderer.send('show-barrage-menu', {ops, x, y})
                     }).catch(e => {
                         this_.addHeadLog(e, 1)
                     })
@@ -1172,6 +1138,28 @@
                 if (this.$ws.connected && this.$ws.roomId === this.userInfo.roomId)
                     this.$ws.close()
             })
+            this.ipcRenderer.on('barrage-menu-clicked', (e, o)=>{
+                this_.getRoomStream(this_.roomInfo.roomId, o.qn).then(options => {
+                    // console.log(options)
+                    let url = ''
+                    options.some(obj1 => {
+                        return obj1.submenu.some(o1 => {
+                            if (o1.index === o.index) {
+                                url = o1.url
+                                return true
+                            }
+                            return false
+                        })
+                    })
+                    cp.exec('clip').stdin.end(iconv.encode(url, 'gbk'));
+                    this_.addHeadLog('已复制直播流地址到剪贴板')
+                    // this_.ipcRenderer.send('open-pot-player')
+                    this_.ipcRenderer.send('open-by-player', url)
+                }).catch(e => {
+                    this_.addHeadLog(e, 1)
+                })
+            })
+
             //     barrage-sc-uname:hover,
             // >>> .barrage-uname:hover,
             // >>> .join-uname:hover,

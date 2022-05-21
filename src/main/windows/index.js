@@ -1,12 +1,13 @@
-import {BrowserWindow, dialog, globalShortcut, ipcMain, Menu, Notification} from 'electron'
+import {app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, Notification, session} from 'electron'
 import {main} from './main'
 import {barrage} from './barrage'
 import {answer} from './answer'
-import {systemTray} from "./systemTray";
-import {close} from "./close";
+import {systemTray} from "./systemTray"
+import {close} from "./close"
 import {player} from "./player"
+import url from'url'
+import cp from "child_process"
 
-const cp = require("child_process")
 // let roomInfo
 let connected = false
 // let settingMain
@@ -27,7 +28,9 @@ function initializeConnections() {
         })
     })
 
-    ipcMain.on('update-connections', (_, {pid, url}) => {
+    ipcMain.on('update-connections', (e/*, {pid, url}*/) => {
+        const pid = e.processId
+        const url = e.sender.getURL()
         Object.keys(connections).forEach(k => {
             if (connections[k].url === url)
                 delete connections[k]
@@ -40,7 +43,8 @@ function initializeConnections() {
         }
     })
 
-    ipcMain.on('sync-store', (_, {dict, pid}) => {
+    ipcMain.on('sync-store', (e, {dict}) => {
+        const pid = e.processId
         const keys = Object.keys(connections).filter(k => {
             return parseInt(connections[k].pid) !== pid
         })
@@ -51,6 +55,12 @@ function initializeConnections() {
 }
 
 export function createWindows() {
+    app.commandLine.appendSwitch('disable-web-security')
+    session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        details.requestHeaders['Referer'] = 'https://www.bilibili.com/'
+        callback({cancel: false, requestHeaders: details.requestHeaders});
+    })
+
     Menu.setApplicationMenu(null)
     main.createWindow()
     barrage.createWindow()
@@ -225,7 +235,6 @@ export function createWindows() {
     })
 
     ipcMain.on('open-by-player', (_, source) => {
-        const url = require('url')
         const res = url.parse(source, true)
         const type = res.pathname.split('.').pop()
         const sourceType = {'flv': 'flv', 'm3u8': 'hls'}

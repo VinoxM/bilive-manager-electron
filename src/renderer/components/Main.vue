@@ -231,8 +231,8 @@
 </template>
 
 <script>
-    const cp = require('child_process')
-    const iconv = require('iconv-lite')
+    import cp from 'child_process'
+    import iconv from'iconv-lite'
 
     import live from '../assets/live.png'
     import liveOn from '../assets/live-on.png'

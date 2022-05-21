@@ -2,9 +2,9 @@ const files = require.context('.', false, /\.js$/)
 const modules = {}
 let state = {}
 const {ipcRenderer} = require('electron')
-const remote = require('electron').remote
-const pid = remote.getCurrentWebContents().getOSProcessId()
-const url = remote.getCurrentWebContents().getURL()
+// const remote = require('@electron/remote')
+// const pid = remote.getCurrentWebContents().getOSProcessId()
+// const url = remote.getCurrentWebContents().getURL()
 
 const path = require('path')
 const fs = require('fs')
@@ -45,7 +45,7 @@ function getModulesDict() {
     return dict
 }
 
-ipcRenderer.send('update-connections', {pid, url})
+ipcRenderer.send('update-connections'/*, {pid, url}*/)
 
 ipcRenderer.on('SyncStore', (_, dict) => {
     updateModulesDict(dict)
@@ -59,7 +59,7 @@ function updateModulesDict(dict) {
 }
 
 function sendToSyncStore() {
-    ipcRenderer.send('sync-store', {dict:getModulesDict(), pid})
+    ipcRenderer.send('sync-store', {dict:getModulesDict()})
 }
 
 const dispatch = function (str, args) {

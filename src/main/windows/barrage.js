@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ipcMain} from 'electron'
+import {app, BrowserWindow, ipcMain, Menu} from 'electron'
 
 const winURL = process.env.NODE_ENV === 'development'
     ? `http://localhost:9080/#/barrage`
@@ -19,7 +19,9 @@ export const barrage = {
             maxHeight: 828,
             minHeight: 500,
             webPreferences: {
-                // devTools: true
+                nodeIntegration: true,
+                contextIsolation: false,
+                // devTools: false
                 devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             frame: false,
@@ -31,7 +33,7 @@ export const barrage = {
 
         let barrageWindow = barrage.window
 
-        barrageWindow.loadURL(winURL)
+        barrageWindow.loadURL(winURL, {userAgent: 'Chrome', httpReferrer: "https://www.bilibili.com/"})
 
         barrageWindow.on('closed', () => {
             barrage.window = null
@@ -67,6 +69,26 @@ export const barrage = {
             barrageWindow.setPosition(pos[0], pos[1])
         })
 
+        ipcMain.on('show-barrage-menu', (e, {ops, x, y}) => {
+            ops.forEach(obj => {
+                obj.submenu = obj.submenu.map(o => {
+                    return {
+                        label: o.label,
+                        i: o.index,
+                        click: function () {
+                            barrageWindow.webContents.send('barrage-menu-clicked', o)
+                        }
+                    }
+                })
+            })
+
+            Menu.buildFromTemplate(ops).popup({
+                window: barrageWindow,
+                x, y
+            })
+        })
+
         barrageWindow.openDevTools({mode: 'undocked'});
     }
 }
+

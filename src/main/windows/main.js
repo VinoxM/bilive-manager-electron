@@ -1,8 +1,7 @@
 import {app, BrowserWindow, ipcMain, dialog, shell} from 'electron'
 import path from "path";
-
-const fs = require('fs');
-const osHomedir = require('os-homedir');
+import fs from 'fs'
+import osHomedir from 'os-homedir'
 
 const devFlag = process.argv.indexOf('--open-dev-tools') > -1 || process.argv.indexOf('--open-main-dev-tools') > -1
 
@@ -25,8 +24,10 @@ export const main = {
             width: 300,
             height: 400,
             webPreferences: {
-                // devTools: true
-                devTools: process.env.NODE_ENV === 'development' || devFlag
+                nodeIntegration: true,
+                contextIsolation:false,
+                devTools: false,
+                // devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             resizable: false,
             frame: false,
@@ -37,7 +38,7 @@ export const main = {
 
         let mainWindow = main.window
 
-        mainWindow.loadURL(winURL)
+        mainWindow.loadURL(winURL, {userAgent: 'Chrome',httpReferrer:"https://www.bilibili.com/"})
 
         mainWindow.on('closed', () => {
             main.window = null

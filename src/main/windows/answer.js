@@ -13,6 +13,8 @@ export const answer = {
             height: 145,
             width: 280,
             webPreferences: {
+                nodeIntegration: true,
+                contextIsolation:false,
                 devTools: false//process.env.NODE_ENV === 'development'
             },
             frame: false,
@@ -24,7 +26,7 @@ export const answer = {
 
         let answerWindow = answer.window
 
-        answerWindow.loadURL(winURL)
+        answerWindow.loadURL(winURL, {userAgent: 'Chrome',httpReferrer:"https://www.bilibili.com/"})
 
         answerWindow.on('closed', () => {
             answer.window = null

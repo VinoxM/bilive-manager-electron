@@ -12,7 +12,7 @@ import {BiliSocket} from '../sokects/bilive'
 import store from '../store'
 import plugins from '../func'
 
-const version = 'v1.0.8'
+const version = 'v1.0.9'
 
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 Vue.config.productionTip = false

@@ -13,6 +13,8 @@ export const close = {
             height: 135,
             width: 280,
             webPreferences: {
+                nodeIntegration: true,
+                contextIsolation:false,
                 devTools: false//process.env.NODE_ENV === 'development'
             },
             frame: false,
@@ -26,7 +28,7 @@ export const close = {
 
         let closeWindow = close.window
 
-        closeWindow.loadURL(winURL)
+        closeWindow.loadURL(winURL, {userAgent: 'Chrome',httpReferrer:"https://www.bilibili.com/"})
 
         closeWindow.on('closed', () => {
             close.window = null

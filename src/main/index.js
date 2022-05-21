@@ -13,9 +13,7 @@ if (process.env.NODE_ENV !== 'development') {
     global.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
 }
 
-app.on('ready', () => {
-    createWindows()
-})
+const gotTheLock = app.requestSingleInstanceLock()
 app.disableHardwareAcceleration()
 app.disableDomainBlockingFor3DAPIs()
 app.setAppUserModelId('Bilive Manager')
@@ -29,17 +27,22 @@ app.on('activate', () => {
     createWindows()
 })
 
-const shouldQuit = app.makeSingleInstance((commandLine, workingDirectory) => {
-    const mainWindow = windows.main.window
-    if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore()
-        if (!mainWindow.isVisible()) mainWindow.show()
-        mainWindow.focus()
-    }
-})
-
-if (shouldQuit) {
+if (!gotTheLock) {
     app.quit()
+} else {
+    app.on('ready', () => {
+        createWindows()
+    })
+
+    app.on('second-instance', ()=>{
+        const mainWindow = windows.main.window
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore()
+            if (!mainWindow.isVisible()) mainWindow.show()
+            mainWindow.focus()
+        }
+    })
+
 }
 
 /**

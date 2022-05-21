@@ -8,6 +8,7 @@
         </slot>
         <div class="header-btn">
             <span class="btn-min" @click="$emit('windowMin')" v-if="btnMin">-</span>
+            <span class="btn-small" @click="$emit('windowSmall')" v-if="btnSmall">↓</span>
             <span class="btn-close" @click="$emit('windowClose')" v-if="btnClose">×</span>
         </div>
     </div>
@@ -24,6 +25,10 @@
             btnClose: {
                 type: Boolean,
                 default: true
+            },
+            btnSmall: {
+                type: Boolean,
+                default: false
             },
             title: '',
             icon: '',
@@ -104,7 +109,13 @@
         border-radius: 50%;
     }
 
-    .header-btn .btn-min:hover {
+    .header-btn .btn-small {
+        transform: rotate(-45deg);
+        font-size: 12px;
+    }
+
+    .header-btn .btn-min:hover, 
+    .header-btn .btn-small:hover{
         background-color: #ffffff;
     }
 
