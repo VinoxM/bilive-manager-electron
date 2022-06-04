@@ -21,7 +21,7 @@ export const barrage = {
             webPreferences: {
                 nodeIntegration: true,
                 contextIsolation: false,
-                // devTools: false
+                // devTools: false,
                 devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             frame: false,
@@ -34,6 +34,11 @@ export const barrage = {
         let barrageWindow = barrage.window
 
         barrageWindow.loadURL(winURL, {userAgent: 'Chrome', httpReferrer: "https://www.bilibili.com/"})
+
+        barrageWindow.on('close', (e) => {
+            e.preventDefault()
+            barrageWindow.webContents.send('closeBarrage')
+        })
 
         barrageWindow.on('closed', () => {
             barrage.window = null

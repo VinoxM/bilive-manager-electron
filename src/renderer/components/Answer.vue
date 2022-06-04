@@ -20,8 +20,7 @@
             const state = this.$store.state
             return {
                 state,
-                message: '',
-                focus: null
+                message: ''
                 // roomInfo: {
                 //     roomId: 0
                 // },
@@ -32,11 +31,11 @@
                 // }
             }
         },
-        computed:{
-            register(){
+        computed: {
+            register() {
                 return this.state['mConfig'].register
             },
-            roomInfo(){
+            roomInfo() {
                 return this.state['Info'].room
             }
         },
@@ -55,7 +54,7 @@
             },
             answerClose() {
                 this.message = ''
-                this.ipcRenderer.send('answer-close', this.focus)
+                this.ipcRenderer.send('answer-close')
             }
         },
         created() {
@@ -67,9 +66,11 @@
                 this.roomInfo = {roomId: 0}
                 this.answerClose()
             })
-            this.ipcRenderer.on('focusInput', (_, focus) => {
-                this.focus = focus
+            this.ipcRenderer.on('focusInput', () => {
                 this.$refs.message.focus()
+            })
+            this.ipcRenderer.on('closeAnswer', () => {
+                this.answerClose()
             })
             // this.ipcRenderer.on('updateSetting', (e, s) => {
             //     this.setting = s

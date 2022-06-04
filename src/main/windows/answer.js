@@ -28,6 +28,11 @@ export const answer = {
 
         answerWindow.loadURL(winURL, {userAgent: 'Chrome',httpReferrer:"https://www.bilibili.com/"})
 
+        answerWindow.on('close', (e) => {
+            e.preventDefault()
+            answerWindow.webContents.send('closeAnswer')
+        })
+
         answerWindow.on('closed', () => {
             answer.window = null
         })

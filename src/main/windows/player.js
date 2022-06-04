@@ -16,7 +16,7 @@ let lastSmallWidth = 640
 
 const lastSmallPos = {x: 0, y: 0}
 
-const movePos = {x:0,y:0}
+const movePos = {x: 0, y: 0}
 
 export const player = {
     url: winURL,
@@ -30,7 +30,7 @@ export const player = {
                 webSecurity: false,
                 nodeIntegration: true,
                 contextIsolation: false,
-                // devTools: true
+                // devTools: false
                 devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             resizable: false,
@@ -45,6 +45,11 @@ export const player = {
         let playerWindow = player.window
 
         playerWindow.loadURL(winURL, {userAgent: 'Chrome', httpReferrer: "https://www.bilibili.com/"})
+
+        playerWindow.on('close', (e) => {
+            e.preventDefault()
+            playerWindow.webContents.send('closePlayer')
+        })
 
         playerWindow.on('closed', () => {
             player.window = null
@@ -93,12 +98,19 @@ export const player = {
             playerWindow.minimize()
         })
 
-        ipcMain.on('video-loaded', (_, {width, height}) => {
+        ipcMain.on('video-loaded', (_, {width, height, isFullscreen, isClosed}) => {
             videoSize.height = height
             videoSize.width = width
-            if (!isSmall)
+            if (!isSmall) {
+                const screenSize = screen.getPrimaryDisplay().size
+                playerWindow.setResizable(true)
+                playerWindow.setMaximumSize(screenSize.width, screenSize.height)
                 playerWindow.setSize(width, height + 30)
+                playerWindow.setFullScreen(!isClosed && isFullscreen)
+                playerWindow.setResizable(false)
+            }
         })
+
 
         ipcMain.on('fullscreen-change', (_, flag) => {
             playerWindow.setResizable(true)
@@ -130,24 +142,24 @@ export const player = {
             lastSmallPos.x = playerWindow.getPosition()[0]
             lastSmallPos.y = playerWindow.getPosition()[1]
             lastSmallWidth = playerWindow.getSize()[0]
+            const screenSize = screen.getPrimaryDisplay().size
             playerWindow.setResizable(true)
             playerWindow.setAlwaysOnTop(false)
-            playerWindow.setMaximumSize(videoSize.width, videoSize.height + 30)
+            playerWindow.setMaximumSize(screenSize.width, screenSize.height)
             playerWindow.setSize(videoSize.width, videoSize.height + 30)
             playerWindow.setResizable(false)
             playerWindow.center()
             isSmall = false
         })
 
-        ipcMain.on('move-small-window', (e,pos) => {
-            playerWindow.setPosition(pos[0],pos[1])
+        ipcMain.on('move-small-window', (e, pos) => {
+            playerWindow.setPosition(pos[0], pos[1])
         })
 
-        ipcMain.on('small-window-on-top', ()=>{
+        ipcMain.on('small-window-on-top', () => {
             const isOnTop = !playerWindow.isAlwaysOnTop()
             playerWindow.setAlwaysOnTop(isOnTop)
             playerWindow.webContents.send('changeSmallWindowOnTop', isOnTop)
         })
-
     }
 }

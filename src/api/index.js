@@ -181,6 +181,26 @@ export default {
         } else
             return Promise.reject(res.message)
     },
+    getRoomBaseInfo: async (roomId) =>{
+        const url = 'https://api.live.bilibili.com/xlive/web-room/v1/index/getRoomBaseInfo'
+        const params = {'req_biz': 'link-center', 'room_ids': roomId}
+        const headers = {'Content-type': 'application/json'}
+        const res = await http.get(url, params, headers)
+        if (res.code === 0) {
+            const data = res.data['by_room_ids'][roomId]
+            return {
+                link: data['live_url'],
+                title: data.title,
+                status: data['live_status'],
+                roomId: roomId,
+                uid: data.uid,
+                uname: data.uname,
+                areaId: data['area_id'],
+                areaName: data['area_name']
+            }
+        } else
+            return Promise.reject(res.message)
+    },
     getRelease: async (source = 'gitee', curVersion) => {
         let url = ''
         let res = null

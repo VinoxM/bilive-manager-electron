@@ -42,6 +42,7 @@ export class BiliSocket {
                         console.log(body)
                         switch (body['cmd']) {
                             case 'DANMU_MSG':
+                            case 'DANMU_MSG:4:0:2:2:2:0':
                                 this.event.emit('message', {
                                     uid: body.info[2][0],
                                     uname: body.info[2][1],
@@ -129,9 +130,9 @@ export class BiliSocket {
                                 })
                                 // console.log(body.data)
                                 break;
-                            // case 'SUPER_CHAT_MESSAGE':
+                            case 'SUPER_CHAT_MESSAGE':
                             case 'SUPER_CHAT_MESSAGE_JPN':
-                                console.log(body.data)
+                                // console.log(body.data)
                                 this.event.emit('sc', {
                                     uid: body.data.uid,
                                     uname: body.data.user_info.uname,

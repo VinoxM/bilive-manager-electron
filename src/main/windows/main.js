@@ -1,7 +1,8 @@
-import {app, BrowserWindow, ipcMain, dialog, shell} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog, shell, Notification} from 'electron'
 import path from "path";
 import fs from 'fs'
 import osHomedir from 'os-homedir'
+import {barrage} from "./barrage";
 
 const devFlag = process.argv.indexOf('--open-dev-tools') > -1 || process.argv.indexOf('--open-main-dev-tools') > -1
 
@@ -11,6 +12,8 @@ const winURL = process.env.NODE_ENV === 'development'
 
 const live = process.env.NODE_ENV !== 'development' ? path.join(__dirname, 'static', 'live.png') : path.join('static', 'live.png')
 const liveOn = process.env.NODE_ENV !== 'development' ? path.join(__dirname, 'static', 'live-on.png') : path.join('static', 'live-on.png')
+
+let hideToTray = false
 
 export const main = {
     url: winURL,
@@ -25,9 +28,9 @@ export const main = {
             height: 400,
             webPreferences: {
                 nodeIntegration: true,
-                contextIsolation:false,
-                devTools: false,
-                // devTools: process.env.NODE_ENV === 'development' || devFlag
+                contextIsolation: false,
+                // devTools: false,
+                devTools: process.env.NODE_ENV === 'development' || devFlag
             },
             resizable: false,
             frame: false,
@@ -38,11 +41,22 @@ export const main = {
 
         let mainWindow = main.window
 
-        mainWindow.loadURL(winURL, {userAgent: 'Chrome',httpReferrer:"https://www.bilibili.com/"})
+        mainWindow.loadURL(winURL, {userAgent: 'Chrome', httpReferrer: "https://www.bilibili.com/"})
+
+        mainWindow.on('close', (e) => {
+            if (hideToTray) {
+                e.preventDefault()
+                mainWindow.hide()
+            }
+        })
 
         mainWindow.on('closed', () => {
             main.window = null
             app.exit()
+        })
+
+        ipcMain.on('update-hide-to-tray', (_, flag) => {
+            hideToTray = flag
         })
 
         ipcMain.on('close-main', (e, flag) => {
@@ -67,8 +81,8 @@ export const main = {
                 message: '有新版本可供下载,是否更新?',
                 buttons: ['下载', '取消'],
                 cancelId: 2
-            }, (index) => {
-                if (index === 0) {
+            }).then(({response}) => {
+                if (response === 0) {
                     if (!fs.existsSync(savePath))
                         fs.mkdirSync(savePath)
                     mainWindow.webContents.downloadURL(downloadUrl); // 触发 will-download 事件
@@ -116,8 +130,8 @@ export const main = {
                         message: '下载已完成,是否执行?',
                         buttons: ['执行', '取消'],
                         cancelId: 2
-                    }, (index) => {
-                        if (index === 0) {
+                    }).then(({response}) => {
+                        if (response === 0) {
                             shell.openItem(filePath)
                         } else {
                             shell.showItemInFolder(filePath)
@@ -128,25 +142,25 @@ export const main = {
         });
 
         ipcMain.on('no-more-updates', () => {
-            dialog.showMessageBox({
-                type: 'info',
-                title: 'Bilive Manager 更新',
-                message: '已经是最新版本!',
-                buttons: ['确定'],
-                cancelId: 2
-            }, () => {
-            })
+            new Notification({
+                body: `已经是最新版本!`,
+                silent: false,
+                icon: live
+            }).on('click', () => {
+                barrage.window.show()
+                this.close()
+            }).show()
         })
 
         ipcMain.on('check-update-fail', (e, message) => {
-            dialog.showMessageBox({
-                type: 'error',
-                title: 'Bilive Manager 更新',
-                message: `检查更新失败,请切换更新源或稍后重试!\n${message}`,
-                buttons: ['确定'],
-                cancelId: 2
-            }, () => {
-            })
+            new Notification({
+                body: `检查更新失败:${message},请切换更新源或稍后重试!`,
+                silent: false,
+                icon: live
+            }).on('click', () => {
+                barrage.window.show()
+                this.close()
+            }).show()
         })
 
         mainWindow.openDevTools({mode: 'undocked'});

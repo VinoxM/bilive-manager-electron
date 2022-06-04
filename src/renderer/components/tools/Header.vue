@@ -96,9 +96,9 @@
 
     .header-btn span {
         display: inline-block;
-        width: 28px;
-        height: 28px;
-        line-height: 28px;
+        width: 26px;
+        height: 26px;
+        line-height: 26px;
         font-size: 16px;
         text-align: center;
         cursor: pointer;
@@ -106,21 +106,32 @@
         vertical-align: bottom;
         user-select: none;
         -webkit-user-select: none;
-        border-radius: 50%;
+        transition: 0.4s;
+        margin: 2px;
     }
 
     .header-btn .btn-small {
-        transform: rotate(-45deg);
+        border-radius: 50%;
         font-size: 12px;
     }
 
-    .header-btn .btn-min:hover, 
+    .header-btn .btn-min:hover{
+        border-radius: 50%;
+        background-color: rgb(214,214,214);
+        box-shadow: -1px -1px 2px 0 rgba(214,214,214,0.35), inset -1px -1px 2px 1px rgba(255,255, 255, 0.2), inset 2px 2px 3px 1px rgba(0, 0, 0, 0.3);
+    }
+
     .header-btn .btn-small:hover{
-        background-color: #ffffff;
+        transform: rotate(-45deg);
+        border-radius: 50%;
+        background-color: rgb(214,214,214);
+        box-shadow: 0px 0 2px 0 rgba(214,214,214,0.35), inset 0px -1px 2px 1px rgba(255,255, 255, 0.2), inset 0px 2px 3px 1px rgba(0, 0, 0, 0.3);
     }
 
     .header-btn .btn-close:hover {
-        background-color: red;
+        border-radius: 50%;
         color: white;
+        background-color: rgb(255,0,0);
+        box-shadow: -1px -1px 2px 0 rgba(255,0,0,0.35), inset -1px -1px 2px 1px rgba(255,255, 255, 0.2), inset 2px 2px 3px 1px rgba(0, 0, 0, 0.3);
     }
 </style>

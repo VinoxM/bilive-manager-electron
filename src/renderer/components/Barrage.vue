@@ -53,17 +53,27 @@
             <span class="message-limit">
                 <span :style="{color: message.length>30?'red':'#409EFF'}">{{message.length}}</span>
             </span>
-            <el-button class="submit-message" size="small" type="primary" @click="sendBarrage" :disabled="!loggedIn||!connected" :loading="messageSending">发送弹幕</el-button>
+            <el-button class="submit-message" size="small" type="primary" @click="sendBarrage"
+                       :disabled="!loggedIn||!connected" :loading="messageSending">发送弹幕
+            </el-button>
         </div>
         <header-log :top="throughFlag?0:36" ref="logs"></header-log>
         <el-dialog :visible.sync="dialogVisible" title="连接到直播间" center width="100%" @closed="cacheTemp=''">
             <el-input-number class="barrage-connect-input" v-model="roomTemp" :controls="false"></el-input-number>
             <el-divider content-position="left">历史记录</el-divider>
             <el-select class="barrage-connect-input" v-model="cacheTemp" ref="cache"
-                       placeholder="请选择..." @change="cacheChanged">
-                <el-option-group v-for="group in cacheGroups" :label="group.label" :key="group.label">
-                    <el-option v-for="item in group.children" :key="item.value" :label="item.label"
-                               :value="item.value" :disabled="item.roomId===0"></el-option>
+                       placeholder="请选择..." @change="cacheChanged" @visible-change="cacheClicked">
+                <el-option-group v-for="(group, index) in cacheGroups" :label="group.label" :key="group.label">
+                    <el-option v-for="(item, index1) in group.children" :key="item.value" :label="item.label"
+                               :value="item.value" :disabled="item.roomId===0">
+                        <div v-if="group.label!=='自己'">
+                            <el-icon :name="item.status === -1? 'loading':'video-camera'"
+                                     :class="`status-icon-color-${item.status}`"></el-icon>
+                            <span>{{item.label}}</span>
+                            <el-icon class="cache-del-icon" name="circle-close"
+                                     @click.stop.native="delCache(item, index, index1)"></el-icon>
+                        </div>
+                    </el-option>
                 </el-option-group>
             </el-select>
             <div slot="footer">
@@ -122,7 +132,7 @@
 
 <script>
     import cp from 'child_process'
-    import iconv from'iconv-lite'
+    import iconv from 'iconv-lite'
     import noface from '../assets/noface.jpg'
     import guard1 from '../assets/icon-guard1.png'
     import guard2 from '../assets/icon-guard2.png'
@@ -221,6 +231,14 @@
                     this.boxHeight = this.clientHeight - (this.throughFlag ? 0 : (36 + this.messageBoxHeight))
                 }
             },
+            throughFlag(val) {
+                if (this.joinShow) {
+                    this.boxHeight = this.clientHeight - (val ? 0 : (36 + this.messageBoxHeight)) - this.dividerHeight - this.joinHeightTemp
+                } else {
+                    this.joinHeightTemp = this.clientHeight - (val ? 0 : (36 + this.messageBoxHeight)) - this.boxHeight - this.dividerHeight
+                    this.boxHeight = this.clientHeight - (val ? 0 : (36 + this.messageBoxHeight))
+                }
+            },
             uNameColor(val) {
                 for (let elem of document.getElementsByClassName('barrage-uname')) {
                     elem.setAttribute('style', `color: ${val}`)
@@ -263,6 +281,7 @@
                     value: val.roomId,
                     uname: val.uname,
                     uid: val.uid,
+                    status: -1,
                     label: `[${val.roomId}] ${val.uname}`
                 }]
                 for (const elem of document.getElementsByClassName('barrage-p')) {
@@ -343,7 +362,7 @@
             register() {
                 return this.state['mConfig'].register
             },
-            loggedIn(){
+            loggedIn() {
                 return this.state['Info'].user.uid !== 0
             }
         },
@@ -417,7 +436,10 @@
             initCache() {
                 // this.cacheOptions = this.$cache.get('liveRoom')
                 this.cacheOptions = JSON.parse(JSON.stringify(this.state.Cache['liveRoom']))
-                this.cacheGroups[0].children = this.cacheOptions
+                this.cacheGroups[0].children = this.cacheOptions.map(o => {
+                    o.status = -1
+                    return o
+                })
             },
             cacheChanged() {
                 this.roomTemp = this.cacheTemp
@@ -834,6 +856,7 @@
                 this.jScrollHide = false
             },
             hideJScroll() {
+                console.log('join j scroll')
                 this.jScrollHide = true
                 this.jScrollCd = false
                 document.getElementById('join').scrollTop = document.getElementById('join').scrollHeight
@@ -911,7 +934,30 @@
                     cp.exec('start ' + this.roomInfo.link)
                 }
             },
+            cacheClicked(val) {
+                if (val) {
+                    const this_ = this
+                    this.cacheGroups[0].children.forEach( o => {
+                        this_.$api.getRoomBaseInfo(o.value).then(res=>{
+                            o.status = res.status
+                            this_.$forceUpdate()
+                        }).catch(()=>{})
+                    })
+                } else
+                    console.log(this.cacheGroups[0].children)
+            },
+            delCache(item, i, i1) {
+                this.cacheGroups[i].children.splice(i1, 1)
+            },
             saveCache(rInfo) {
+                this.cacheOptions = this.cacheGroups[0].children.map(o=>{
+                    return {
+                        value: o.value,
+                        uname: o.uname,
+                        uid: o.uid,
+                        label: `[${o.value}] ${o.uname}`
+                    }
+                })
                 const index = this.cacheOptions.findIndex(o => o.value === this.roomTemp)
                 if (index > -1) {
                     this.cacheOptions.splice(index, 1)
@@ -928,12 +974,16 @@
                 // this.$cache.save()
                 this.$store.dispatch('Cache.updateCache', {type: 'liveRoom', data: this.cacheOptions})
                 this.$store.dispatch('Cache.persistence')
-                this.cacheGroups[0].children = this.cacheOptions
+                this.cacheGroups[0].children = this.cacheOptions.map(o=>{
+                    o.status = -1
+                    return o
+                })
             },
             emptyBarrageAndJoin() {
                 document.getElementById('barrage').innerHTML = ''
                 document.getElementById('join').innerHTML = ''
                 document.getElementById('effect').innerHTML = ''
+                document.getElementById('effect-sc').innerHTML = ''
             },
             handleResize(size) {
                 if (size) this.clientHeight = size.height
@@ -1064,6 +1114,9 @@
         created() {
             const this_ = this
             this.initCache()
+            this.ipcRenderer.on('closeBarrage', () => {
+                this.barrageClose()
+            })
             this.ipcRenderer.on('resize', (e, size) => {
                 // console.log(size)
                 this_.handleResize(size)
@@ -1120,9 +1173,9 @@
                 this.addHeadLog(msg, 1)
             })
             this.addWsListeners()
-            if (!this.$ws.connected) {
-                this.ipcRenderer.send('update-ws-connect', false)
-            }
+            // if (!this.$ws.connected) {
+            //     this.ipcRenderer.send('update-ws-connect', false)
+            // }
             this.ipcRenderer.on('connectWsSelf', (e, uInfo) => {
                 if (this.$ws.connected) {
                     if (this.$ws.roomId !== this.userInfo.roomId) {
@@ -1138,7 +1191,7 @@
                 if (this.$ws.connected && this.$ws.roomId === this.userInfo.roomId)
                     this.$ws.close()
             })
-            this.ipcRenderer.on('barrage-menu-clicked', (e, o)=>{
+            this.ipcRenderer.on('barrage-menu-clicked', (e, o) => {
                 this_.getRoomStream(this_.roomInfo.roomId, o.qn).then(options => {
                     // console.log(options)
                     let url = ''
@@ -1837,6 +1890,28 @@
     >>> .barrage-effect-gift-num {
         text-decoration: underline;
         /*color: #a6c0e8;*/
+    }
+
+    .status-icon-color--1 {
+        color: #67e1f3;
+    }
+
+    .status-icon-color-0 {
+        color: #ff0000;
+    }
+
+    .status-icon-color-1 {
+        color: #19b32c;
+    }
+
+    .cache-del-icon {
+        float: right;
+        transform: translateY(8px);
+        font-size: 16px;
+    }
+
+    .cache-del-icon:hover {
+        color: red;
     }
 
     .heartbeat-box {

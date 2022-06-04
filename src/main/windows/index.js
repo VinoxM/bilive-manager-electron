@@ -5,7 +5,7 @@ import {answer} from './answer'
 import {systemTray} from "./systemTray"
 import {close} from "./close"
 import {player} from "./player"
-import url from'url'
+import url from 'url'
 import cp from "child_process"
 
 // let roomInfo
@@ -14,6 +14,8 @@ let connected = false
 
 const connections = {}
 const urls = []
+
+let focus = null
 
 function initializeConnections() {
     const files = require.context('.', false, /\.js$/)
@@ -54,6 +56,59 @@ function initializeConnections() {
     })
 }
 
+function updateShortcuts() {
+    ipcMain.on('update-shortcut-sendMsg', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
+        }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            focus = BrowserWindow.getFocusedWindow()
+            if (connected) {
+                answer.window.show()
+                answer.window.webContents.send('focusInput')
+            }
+        })
+    })
+
+    ipcMain.on('update-shortcut-clickThrough', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
+        }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            const flag = systemTray.menu.getMenuItemById('clickThrough').checked
+            barrage.window.setIgnoreMouseEvents(!flag)
+            systemTray.menu.getMenuItemById('clickThrough').checked = !flag
+            barrage.window.webContents.send('toggleClickThrough', !flag)
+        })
+    })
+
+    ipcMain.on('update-shortcut-onTop', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
+        }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            barrage.window.setAlwaysOnTop(!barrage.window.isAlwaysOnTop())
+            barrage.window.webContents.send('updateOnTop', barrage.window.isAlwaysOnTop())
+        })
+    })
+
+    ipcMain.on('update-shortcut-showBarrage', (e, {old, new_}) => {
+        if (old !== '无' && globalShortcut.isRegistered(old)) {
+            globalShortcut.unregister(old)
+        }
+        if (new_ === '无') return
+        globalShortcut.register(new_, () => {
+            if (barrage.window.isVisible()) {
+                barrage.window.hide()
+            } else barrage.window.show()
+            systemTray.menu.getMenuItemById('barrage').checked = barrage.window.isVisible()
+        })
+    })
+}
+
 export function createWindows() {
     app.commandLine.appendSwitch('disable-web-security')
     session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
@@ -71,32 +126,7 @@ export function createWindows() {
 
     initializeConnections()
 
-    ipcMain.on('update-shortcut-sendMsg', (e, {old, new_}) => {
-        if (old !== '无' && globalShortcut.isRegistered(old)) {
-            globalShortcut.unregister(old)
-        }
-        if (new_ === '无') return
-        globalShortcut.register(new_, () => {
-            const focus = BrowserWindow.getFocusedWindow()
-            if (connected) {
-                answer.window.show()
-                answer.window.webContents.send('focusInput', focus)
-            }
-        })
-    })
-
-    ipcMain.on('update-shortcut-clickThrough', (e, {old, new_}) => {
-        if (old !== '无' && globalShortcut.isRegistered(old)) {
-            globalShortcut.unregister(old)
-        }
-        if (new_ === '无') return
-        globalShortcut.register(new_, () => {
-            const flag = systemTray.menu.getMenuItemById('clickThrough').checked
-            barrage.window.setIgnoreMouseEvents(!flag)
-            systemTray.menu.getMenuItemById('clickThrough').checked = !flag
-            barrage.window.webContents.send('toggleClickThrough', !flag)
-        })
-    })
+    updateShortcuts()
 
     ipcMain.on('click-through', () => {
         barrage.window.setIgnoreMouseEvents(true)
@@ -148,6 +178,9 @@ export function createWindows() {
 
     ipcMain.on('update-live-status', (_, info) => {
         main.window.webContents.send('updateLiveStatus')
+        if (!info.status) {
+            player.window.webContents.send('liveEnd')
+        }
         if (info.status && !barrage.window.isVisible()) {
             let notify = new Notification({
                 title: `${info.uname}的直播开始了`,
@@ -221,14 +254,14 @@ export function createWindows() {
     })
 
     ipcMain.on('open-pot-player', () => {
-        dialog.showMessageBox({
+        dialog.showMessageBox(main.window,{
             type: 'info',
             title: '打开',
             message: '是否用PotPlayer打开?',
             buttons: ['确定', '取消'],
             cancelId: 2
-        }, (index) => {
-            if (index === 0) {
+        }).then(({response}) => {
+            if (response === 0) {
                 cp.exec('"C:\\Program Files\\DAUM\\PotPlayer\\PotPlayerMini64.exe" /clipboard')
             }
         })
@@ -242,7 +275,7 @@ export function createWindows() {
         player.window.webContents.send('playSource', {type: sourceType[type], source})
     })
 
-    ipcMain.on('answer-close', (_, focus) => {
+    ipcMain.on('answer-close', () => {
         answer.window.hide()
         if (focus) {
             focus.focus()

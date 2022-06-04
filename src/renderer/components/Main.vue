@@ -8,14 +8,15 @@
                 <div class="user-info">
                     <el-row class="user-info-item" style="margin-bottom: 4px">
                         <span class="user-name">{{userInfo.uname||'userName'}}</span>
-                        <span :class="'user-level level-'+(userInfo.level||'0')">Level {{userInfo.level||'0'}}</span>
+                        <span :class="`user-level ${levelClass}`" @click="infoVisible = !infoVisible">Level {{infoVisible?userInfo.level||'0' : '-'}}</span>
                     </el-row>
                     <el-row class="user-info-item" style="margin-bottom: 4px">
                         <span class="user-stat">
-                            关注 :<span :title="userInfo.follow">{{handleNumber(userInfo.follow||0)}}</span>
+                            关注 :<span
+                                :title="userInfo.follow">{{infoVisible?handleNumber(userInfo.follow||0):'-'}}</span>
                         </span>
                         <span class="user-stat">
-                            粉丝 :<span :title="userInfo.fans">{{handleNumber(userInfo.fans||0)}}</span>
+                            粉丝 :<span :title="userInfo.fans">{{infoVisible?handleNumber(userInfo.fans||0):'-'}}</span>
                         </span>
                     </el-row>
                     <el-row class="user-info-item">
@@ -85,13 +86,18 @@
                        popper-class="live-info-select-inner" :popper-append-to-body="false"
                        :filter-method="areaFilter" @change="initAreaOptions">
                 <el-option v-for="item of areaOptions" :key="item.value" :label="item.label"
-                           :value="item.value"></el-option>
+                           :value="item.value">
+                </el-option>
             </el-select>
             <el-divider content-position="left">历史记录</el-divider>
             <el-select class="live-info-input" v-model="cacheTemp" ref="cache"
                        :placeholder="cacheOptions.length>0?'请选择...':'无历史记录'" @change="cacheChanged">
-                <el-option v-for="item of cacheOptions" :key="item.value" :label="item.label"
-                           :value="item.value"></el-option>
+                <el-option v-for="(item, index) of cacheOptions" :key="item.value" :label="item.label"
+                           :value="item.value">
+                    <span>{{item.label}}</span>
+                    <el-icon class="cache-del-icon" name="circle-close"
+                             @click.stop.native="delCache(item, index)"></el-icon>
+                </el-option>
             </el-select>
             <div slot="footer">
                 <el-link v-if="editTitle" icon="el-icon-check" @click="updateLiveTitle">保存</el-link>
@@ -120,71 +126,37 @@
                     </div>
                 </el-tab-pane>
                 <el-tab-pane label="快捷键" name="shortcut">
-                    <div class="setting-item">
+                    <div class="setting-item" v-for="(key, index) of Object.keys(shortcutOps)" :key="index">
                         <div class="setting-item-row">
-                            <span class="setting-item-label" style="width: 60px">发送弹幕</span>
-                            <el-tag size="small">{{shortcutOps.sendMsg[3]}}</el-tag>
-                            <el-link icon="el-icon-check" @click.native="shortcutApply('sendMsg')"
-                                     :disabled="shortcutOps.sendMsg[3]===settingMain.sendMsgShortcut[3]">应用
+                            <span class="setting-item-label" style="width: 60px">{{shortcutOps[key][4]}}</span>
+                            <el-tag size="small">{{shortcutOps[key][3]}}</el-tag>
+                            <el-link icon="el-icon-check" @click.native="shortcutApply(key)"
+                                     :disabled="shortcutOps[key][3]===settingMain[`${key}Shortcut`][3]">应用
                             </el-link>
                         </div>
-                        <el-select v-model="shortcutOps.sendMsg[0]" size="small" class="setting-shortcut-select"
-                                   @change="shortcutFirstChange($event, 'sendMsg')">
+                        <el-select v-model="shortcutOps[key][0]" size="small" class="setting-shortcut-select"
+                                   @change="shortcutFirstChange($event, key)">
                             <el-option value="" label="-"></el-option>
                             <el-option value="Ctrl" label="Ctrl"></el-option>
                             <el-option value="Alt" label="Alt"></el-option>
                             <el-option value="Shift" label="Shift"></el-option>
                         </el-select>
-                        <el-select v-model="shortcutOps.sendMsg[1]"
-                                   :disabled="shortcutOps.sendMsg[0] === '' || shortcutOps.sendMsg[0]==='Shift'"
+                        <el-select v-model="shortcutOps[key][1]"
+                                   :disabled="shortcutOps[key][0] === '' || shortcutOps[key][0]==='Shift'"
                                    size="small" class="setting-shortcut-select"
-                                   @change="shortcutChange($event, 'sendMsg')">
+                                   @change="shortcutChange($event, key)">
                             <el-option value="" label="-"></el-option>
                             <el-option value="Ctrl" label="Ctrl"
-                                       :disabled="shortcutOps.sendMsg[0] === 'Ctrl'"></el-option>
-                            <el-option value="Alt" label="Alt" :disabled="shortcutOps.sendMsg[0] === 'Alt'"></el-option>
+                                       :disabled="shortcutOps[key][0] === 'Ctrl'"></el-option>
+                            <el-option value="Alt" label="Alt" :disabled="shortcutOps[key][0] === 'Alt'"></el-option>
                             <el-option value="Shift" label="Shift"
-                                       :disabled="shortcutOps.sendMsg[0] === 'Shift'"></el-option>
+                                       :disabled="shortcutOps[key][0] === 'Shift'"></el-option>
                         </el-select>
-                        <el-input size="small" class="setting-shortcut-input" :value="shortcutOps.sendMsg[2]"
-                                  :disabled="shortcutOps.sendMsg[0] === ''"
+                        <el-input size="small" class="setting-shortcut-input" :value="shortcutOps[key][2]"
+                                  :disabled="shortcutOps[key][0] === ''"
                                   @keydown.tab.prevent.native="" @keydown.esc.prevent.native=""
-                                  @input.native="shortcutUpdate($event, 'sendMsg')"
-                                  @keydown.native="shortcutListener($event, 'sendMsg')" ref="sendMsg"></el-input>
-                    </div>
-                    <div class="setting-item">
-                        <div class="setting-item-row">
-                            <span class="setting-item-label" style="width: 60px">点击穿透</span>
-                            <el-tag size="small">{{shortcutOps.clickThrough[3]}}</el-tag>
-                            <el-link icon="el-icon-check" @click.native="shortcutApply('clickThrough')"
-                                     :disabled="shortcutOps.clickThrough[3]===settingMain.clickThroughShortcut[3]">应用
-                            </el-link>
-                        </div>
-                        <el-select v-model="shortcutOps.clickThrough[0]" size="small" class="setting-shortcut-select"
-                                   @change="shortcutFirstChange($event, 'clickThrough')">
-                            <el-option value="" label="-"></el-option>
-                            <el-option value="Ctrl" label="Ctrl"></el-option>
-                            <el-option value="Alt" label="Alt"></el-option>
-                            <el-option value="Shift" label="Shift"></el-option>
-                        </el-select>
-                        <el-select v-model="shortcutOps.clickThrough[1]"
-                                   :disabled="shortcutOps.clickThrough[0] === '' || shortcutOps.clickThrough[0]==='Shift'"
-                                   size="small" class="setting-shortcut-select"
-                                   @change="shortcutChange($event, 'clickThrough')">
-                            <el-option value="" label="-"></el-option>
-                            <el-option value="Ctrl" label="Ctrl"
-                                       :disabled="shortcutOps.clickThrough[0] === 'Ctrl'"></el-option>
-                            <el-option value="Alt" label="Alt"
-                                       :disabled="shortcutOps.clickThrough[0] === 'Alt'"></el-option>
-                            <el-option value="Shift" label="Shift"
-                                       :disabled="shortcutOps.clickThrough[0] === 'Shift'"></el-option>
-                        </el-select>
-                        <el-input size="small" class="setting-shortcut-input" :value="shortcutOps.clickThrough[2]"
-                                  :disabled="shortcutOps.clickThrough[0] === ''"
-                                  @keydown.tab.prevent.native="" @keydown.esc.prevent.native=""
-                                  @input.native="shortcutUpdate($event, 'clickThrough')"
-                                  @keydown.native="shortcutListener($event, 'clickThrough')"
-                                  ref="clickThrough"></el-input>
+                                  @input.native="shortcutUpdate($event, key)"
+                                  @keydown.native="shortcutListener($event, key)" :ref="key"></el-input>
                     </div>
                 </el-tab-pane>
                 <el-tab-pane label="其他设置" name="setting">
@@ -232,7 +204,7 @@
 
 <script>
     import cp from 'child_process'
-    import iconv from'iconv-lite'
+    import iconv from 'iconv-lite'
 
     import live from '../assets/live.png'
     import liveOn from '../assets/live-on.png'
@@ -245,9 +217,10 @@
             return {
                 state,
                 icon: live,
-                title: 'Bilive Manager',
+                // title: 'Bilive Manager',
                 userLoading: false,
                 noface: noface,
+                infoVisible: false,
                 // avatar: noface,
                 // userInfo: {
                 //     uname: 'userName',
@@ -294,11 +267,15 @@
                     runForUpdate: true,
                     updateSource: 'gitee',
                     sendMsgShortcut: ['', '', '', '无'],
-                    clickThroughShortcut: ['', '', '', '无']
+                    clickThroughShortcut: ['', '', '', '无'],
+                    onTopShortcut: ['', '', '', '无'],
+                    showBarrageShortcut: ['', '', '', '无']
                 },
                 shortcutOps: {
-                    sendMsg: ['', '', '', '无'],
-                    clickThrough: ['', '', '', '无']
+                    sendMsg: ['', '', '', '无', '发送弹幕'],
+                    clickThrough: ['', '', '', '无', '点击穿透'],
+                    onTop: ['', '', '', '无', '弹幕置顶'],
+                    showBarrage: ['', '', '', '无', '显示弹幕']
                 },
                 downloadVisible: false,
                 downloadTitle: '正在下载更新...',
@@ -309,6 +286,10 @@
             }
         },
         computed: {
+            levelClass() {
+                if (!this.infoVisible) return 'level-hide'
+                return `level-${this.userInfo.level}`
+            },
             loadFail() {
                 return this.liveInfo.roomId === 0
             },
@@ -326,23 +307,29 @@
             },
             liveInfo() {
                 return this.state['Info'].live
+            },
+            title() {
+                return `[${this.liveInfo.status ? '直播中' : '未开播'}]Bilive Manager`
             }
         },
         methods: {
             initConfigMain(isCreated = false) {
                 this.settingMain = this.state['mConfig'].setting
-                this.shortcutOps.sendMsg = Array.from(this.settingMain.sendMsgShortcut)
-                this.shortcutOps.clickThrough = Array.from(this.settingMain.clickThroughShortcut)
+                Object.keys(this.shortcutOps).forEach(key => {
+                    if (!((key + 'Shortcut') in this.settingMain)) {
+                        this.settingMain[key + 'Shortcut'] = this.shortcutOps[key].slice(0, 4)
+                    }
+                    this.shortcutOps[key] = Array.from([...this.settingMain[key + 'Shortcut'], ...[this.shortcutOps[key][4]]])
+                })
                 if (isCreated) {
-                    this.ipcRenderer.send('update-shortcut-sendMsg', {
-                        old: '无',
-                        new_: this.settingMain.sendMsgShortcut[3]
-                    })
-                    this.ipcRenderer.send('update-shortcut-clickThrough', {
-                        old: '无',
-                        new_: this.settingMain.clickThroughShortcut[3]
+                    Object.keys(this.shortcutOps).forEach(key => {
+                        this.ipcRenderer.send(`update-shortcut-${key}`, {
+                            old: '无',
+                            new_: this.settingMain[`${key}Shortcut`][3]
+                        })
                     })
                 }
+                this.ipcRenderer.send('update-hide-to-tray', this.settingMain.closeAction === 'toTray')
             },
             saveConfigMain() {
                 this.$store.dispatch('mConfig.updateSetting', this.settingMain)
@@ -641,6 +628,9 @@
                     this.areaIdTemp = this.cacheTemp
                 }
             },
+            delCache(item, index) {
+                this.cacheOptions.splice(index, 1)
+            },
             saveCache() {
                 if (this.editTitle) {
                     const index = this.cacheOptions.findIndex((o) => o.label === this.titleTemp)
@@ -742,11 +732,20 @@
                 return elem.slice(0, 3).join('+')
             },
             shortcutApply(key) {
+                for (const k in this.shortcutOps) {
+                    if (key === k) continue
+                    if (this.shortcutOps[k][3] === this.shortcutOps[key][3]) {
+                        console.log(k)
+                        this.addHeadLog(`与 ${this.shortcutOps[k][4]} 快捷键冲突`, 1)
+                        return
+                    }
+                }
                 this.ipcRenderer.send(`update-shortcut-${key}`, {
                     old: this.settingMain[`${key}Shortcut`][3],
                     new_: this.shortcutOps[key][3]
                 })
-                this.settingMain[`${key}Shortcut`] = Array.from(this.shortcutOps[key])
+                this.settingMain[`${key}Shortcut`] = Array.from(this.shortcutOps[key].slice(0, 4))
+                this.$forceUpdate()
                 this.addHeadLog('应用成功')
             }
         },
@@ -864,9 +863,10 @@
         border-radius: 4px;
         text-align: center;
         vertical-align: center;
+        cursor: pointer;
     }
 
-    .level-0, .level-1 {
+    .level-0, .level-1, .level-hide {
         background-color: #bfbfbf;
     }
 
@@ -995,6 +995,16 @@
         text-align: center;
     }
 
+    .cache-del-icon {
+        float: right;
+        transform: translateY(8px);
+        font-size: 16px;
+    }
+
+    .cache-del-icon:hover {
+        color: red;
+    }
+
     >>> .live-info-select-inner .el-select-dropdown__wrap {
         max-height: 200px;
     }
@@ -1059,6 +1069,17 @@
 
     .main-setting-box >>> .el-tabs {
         height: 300px;
+        overflow: hidden;
+    }
+
+    .main-setting-box >>> .el-tabs__content {
+        padding: 10px;
+    }
+
+    .main-setting-box >>> .el-tab-pane {
+        height: 235px;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
 
     .main-setting-footer {
