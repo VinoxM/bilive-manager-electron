@@ -122,7 +122,7 @@ export const player = {
             const screenSize = screen.getPrimaryDisplay().size
             playerWindow.setAlwaysOnTop(true)
             playerWindow.setResizable(true)
-            const maxWidth = 760, minWidth = 510, width = lastSmallWidth
+            const maxWidth = screenSize.width/2, minWidth = 510, width = lastSmallWidth
             const b = videoSize.height / videoSize.width
             const resize = {width: width, height: Math.floor(width * b)}
             playerWindow.setSize(width, resize.height)

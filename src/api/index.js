@@ -19,23 +19,21 @@ const http = {
         })
     },
     post: (url, data, headers) => {
-        const formData = querystring.stringify(data)
         if (headers) {
-            headers['Content-Length'] = formData.length
-            headers['Content-type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
+            headers['content-type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
         }
         return new Promise((resolve) => {
             request({
                 method: 'POST',
                 url,
-                body: formData,
+                form: data,
                 headers,
                 json: true
             }, (err, res, body) => {
                 if (!err) {
                     resolve(body)
-                }
-                resolve({code: -1, message: '请求出错'})
+                } else
+                    resolve({code: -1, message: '请求出错'})
             })
         })
     }
@@ -101,10 +99,12 @@ export default {
         }
         return Promise.reject(res.message)
     },
-    getAvatarContentByUid: async (uid) => {
+    getAvatarContentByUid: async (uid, cookie) => {
         const url = 'https://api.bilibili.com/x/space/acc/info'
         const params = {'mid': uid, 'jsonp': 'jsonp'}
-        const res = await http.get(url, params)
+        const headers = {'cookie': cookie, 'Content-type': 'application/json'}
+        const res = await http.get(url, params, headers)
+        console.log(res)
         if (res.code === 0) {
             const face = res.data.face
             return await getFaceContent(face).catch(e => {
@@ -181,7 +181,7 @@ export default {
         } else
             return Promise.reject(res.message)
     },
-    getRoomBaseInfo: async (roomId) =>{
+    getRoomBaseInfo: async (roomId) => {
         const url = 'https://api.live.bilibili.com/xlive/web-room/v1/index/getRoomBaseInfo'
         const params = {'req_biz': 'link-center', 'room_ids': roomId}
         const headers = {'Content-type': 'application/json'}
@@ -232,10 +232,10 @@ export default {
     updateLiveTitle: async (roomId, title, token, cookie) => {
         const url = 'https://api.live.bilibili.com/room/v1/Room/update'
         const params = {
-            'room_id': roomId,
-            'title': title,
             'csrf_token': token,
-            'csrf': token
+            'csrf': token,
+            'room_id': roomId,
+            'title': title
         }
         const headers = {'cookie': cookie}
         const res = await http.post(url, params, headers)
@@ -244,10 +244,10 @@ export default {
     updateLiveArea: async (roomId, areaId, token, cookie) => {
         const url = 'https://api.live.bilibili.com/room/v1/Room/update'
         const params = {
-            'room_id': roomId,
-            'area_id': areaId,
             'csrf_token': token,
-            'csrf': token
+            'csrf': token,
+            'room_id': roomId,
+            'area_id': areaId
         }
         const headers = {'cookie': cookie}
         const res = await http.post(url, params, headers)
@@ -300,15 +300,40 @@ export default {
         })
         return res.code === 0 ? res.data : Promise.reject(res.message)
     },
-    getUserCardByUid: async (uid, cookie) =>{
+    getUserCardByUid: async (uid, cookie) => {
         const url = 'http://api.bilibili.com/x/web-interface/card'
         const params = {
-            mid:uid,
-            photo:1
+            mid: uid,
+            photo: 1
         }
         const headers = {cookie}
         const res = await http.post(url, params, headers)
 
+    },
+    getLoginQrCode: async () => {
+        const url = 'http://passport.bilibili.com/x/passport-login/web/qrcode/generate'
+        const res = await http.get(url)
+        return res.code === 0 ? res.data : Promise.reject(res.message)
+    },
+    gotoLogin: async (qrcode_key) => {
+        const url = 'http://passport.bilibili.com/x/passport-login/web/qrcode/poll'
+        const res = await http.get(url, {qrcode_key})
+        return res.code === 0 ? res.data : Promise.reject(res.message)
+    },
+    getLoginQrCodeOld: async () =>{
+        const url = 'http://passport.bilibili.com/qrcode/getLoginUrl'
+        const res = await http.get(url)
+        return res.code === 0 ? res.data : Promise.reject(res.message)
+    },
+    gotoLoginOld: async ({oauthKey, gourl})=>{
+        const url = 'http://passport.bilibili.com/qrcode/getLoginInfo'
+        const res = await http.post(url, {oauthKey, gourl} , {})
+        return res.code === 0 ? res.data : Promise.reject(res.message)
+    },
+    getLoginTVQrCode: async () => {
+        const url = 'http://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code'
+        const res = await http.post(url, {appkey:'4409e2ce8ffd12b8', local_id: 0, ts: 0, sign:'e134154ed6add881d28fbdf68653cd9c'} , {})
+        return res.code === 0 ? res.data : Promise.reject(res.message)
     }
 }
 

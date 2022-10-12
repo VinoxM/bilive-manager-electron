@@ -31,6 +31,11 @@ export default new Router({
       component: require('@/components/Player').default
     },
     {
+      path: '/login',
+      name: 'login',
+      component: require('@/components/Login').default
+    },
+    {
       path: '*',
       redirect: '/'
     }

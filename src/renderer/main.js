@@ -40,6 +40,9 @@ Vue.component('header-box', Header)
 import HeaderLog from "./components/tools/HeaderLog";
 Vue.component('header-log', HeaderLog)
 
+import VueQrcode from '@chenfengyuan/vue-qrcode';
+Vue.component(VueQrcode.name, VueQrcode);
+
 /* eslint-disable no-new */
 new Vue({
     components: {App},

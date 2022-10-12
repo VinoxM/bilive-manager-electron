@@ -4,7 +4,7 @@
                     @windowClose="windowClose"></header-box>
         <div class="main-box">
             <div class="main-user-box" v-loading="userLoading">
-                <img class="user-avatar" :src="userInfo.avatar||noface">
+                <img class="user-avatar" title="点击扫码登录" :src="userInfo.avatar||noface" @click="toLogin">
                 <div class="user-info">
                     <el-row class="user-info-item" style="margin-bottom: 4px">
                         <span class="user-name">{{userInfo.uname||'userName'}}</span>
@@ -109,7 +109,7 @@
                    @closed="initRegisterForm"
                    class="main-setting-box">
             <el-tabs v-model="activeTab" type="border-card" :stretch="true">
-                <el-tab-pane label="用户信息" name="user">
+ <!--               <el-tab-pane label="用户信息" name="user">
                     <div class="setting-item">
                         <span class="setting-item-label">Uid</span>
                         <el-input class="setting-item-input" v-model="registerForm.uid"></el-input>
@@ -124,7 +124,7 @@
                         <el-input type="textarea" class="setting-item-input" :rows="5" resize="none"
                                   v-model="registerForm.cookie"></el-input>
                     </div>
-                </el-tab-pane>
+                </el-tab-pane>-->
                 <el-tab-pane label="快捷键" name="shortcut">
                     <div class="setting-item" v-for="(key, index) of Object.keys(shortcutOps)" :key="index">
                         <div class="setting-item-row">
@@ -170,11 +170,11 @@
                     <div class="setting-item">
                         <el-checkbox v-model="settingMain.runForUpdate" label="启动检查更新"></el-checkbox>
                     </div>
-                    <div class="setting-item" v-if="settingMain.runForUpdate">
+                    <div class="setting-item">
                         <span class="setting-item-label">更新源</span><br>
                         <el-radio-group v-model="settingMain.updateSource" size="small">
                             <el-radio label="github">Github(国外)</el-radio>
-                            <el-radio label="gitee">Gitee(国内)</el-radio>
+                            <el-radio label="gitee" disabled title="因Gitee下载策略变更,暂禁用">Gitee(国内)</el-radio>
                         </el-radio-group>
                     </div>
                     <el-divider></el-divider>
@@ -251,6 +251,7 @@
                 areaOptions: [],
                 cacheTemp: '',
                 cacheOptions: [],
+                cacheMaxNum: 8,
                 settingVisible: false,
                 registerForm: {
                     uid: '',
@@ -258,7 +259,7 @@
                     cookie: ''
                 },
                 minToTay: true,
-                activeTab: 'user',
+                activeTab: 'shortcut',
                 settingMain: {
                     dontAskMe: false,
                     closeAction: 'toClose',
@@ -414,8 +415,7 @@
                     this.addHeadLog(`加载失败:${e}, 请检查配置`, 1)
                     this.initUserInfo()
                     this.initLiveInfo()
-                    this.settingVisible = true
-                    this.activeTab = 'user'
+                    this.toLogin()
                 })
                 this.ipcRenderer.send('save-user-info', this.userInfo)
                 this.userLoading = false
@@ -479,7 +479,7 @@
                     }
                     this.$store.dispatch('Info.updateInfoByKey', {key: 'live', data: liveInfo})
                 }).catch(e => {
-                    this.addHeadLog(e.message)
+                    this.addHeadLog(e)
                     this.initLiveInfo()
                 })
                 this.liveLoading = false
@@ -636,7 +636,7 @@
                     const index = this.cacheOptions.findIndex((o) => o.label === this.titleTemp)
                     if (index > -1) {
                         this.cacheOptions.splice(index, 1)
-                    } else if (this.cacheOptions.length >= 5) {
+                    } else if (this.cacheOptions.length >= this.cacheMaxNum) {
                         this.cacheOptions.pop()
                     }
                     this.cacheOptions.unshift({
@@ -649,7 +649,7 @@
                     const index = this.cacheOptions.findIndex((o) => o.value === this.areaIdTemp)
                     if (index > -1) {
                         this.cacheOptions.splice(index, 1)
-                    } else if (this.cacheOptions.length >= 5) {
+                    } else if (this.cacheOptions.length >= this.cacheMaxNum) {
                         this.cacheOptions.pop()
                     }
                     this.cacheOptions.unshift(this.areaOptions.find((o) => o.value === this.areaIdTemp))
@@ -665,6 +665,7 @@
             checkUpdate(flag = false) {
                 let this_ = this
                 this.$api.getRelease(this.settingMain.updateSource, this.$version).then(res => {
+                    console.log(res.downloadUrl)
                     if (res.hasNew) {
                         this_.ipcRenderer.send('download', res.downloadUrl)
                     } else {
@@ -747,6 +748,15 @@
                 this.settingMain[`${key}Shortcut`] = Array.from(this.shortcutOps[key].slice(0, 4))
                 this.$forceUpdate()
                 this.addHeadLog('应用成功')
+            },
+            toLogin() {
+                // if (this.userInfo.uid === 0)
+                    this.ipcRenderer.send('to-login')
+            },
+            saveRegister(register) {
+                this.$store.dispatch('mConfig.updateRegister', register)
+                this.saveConfigMain()
+                this.getUserInfo()
             }
         },
         created() {
@@ -790,6 +800,9 @@
             this.ipcRenderer.on('updateLiveStatus', () => {
                 this.getLiveInfo()
             })
+            this.ipcRenderer.on('saveRegister', (e, register) => {
+                this.saveRegister(register)
+            })
         }
     }
 </script>
@@ -825,6 +838,12 @@
         height: 80px;
         display: inline-block;
         border-radius: 50%;
+        transition: 0.4s;
+    }
+
+    .user-avatar:hover {
+        cursor: pointer;
+        box-shadow: 0 0 4px 2px rgba(0, 16, 255, 0.4);
     }
 
     .user-info {

@@ -22,7 +22,7 @@ export const close = {
             alwaysOnTop: true,
             skipTaskbar: true,
             maximizable: false,
-            parent: main.mainWindow,
+            parent: main.window,
             modal: true
         })
 

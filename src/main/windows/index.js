@@ -5,6 +5,7 @@ import {answer} from './answer'
 import {systemTray} from "./systemTray"
 import {close} from "./close"
 import {player} from "./player"
+import {login} from "./login"
 import url from 'url'
 import cp from "child_process"
 
@@ -32,7 +33,7 @@ function initializeConnections() {
 
     ipcMain.on('update-connections', (e/*, {pid, url}*/) => {
         const pid = e.processId
-        const url = e.sender.getURL()
+        const url = decodeURI(e.sender.getURL())
         Object.keys(connections).forEach(k => {
             if (connections[k].url === url)
                 delete connections[k]
@@ -123,6 +124,7 @@ export function createWindows() {
     systemTray.createTray(main, barrage)
     close.createWindow(main)
     player.createWindow()
+    login.createWindow(main)
 
     initializeConnections()
 
@@ -285,8 +287,17 @@ export function createWindows() {
             player.window.blur()
         }
     })
+
+    ipcMain.on('to-login', () => {
+        login.window.show()
+        login.window.webContents.send('login')
+    })
+
+    ipcMain.on('login-success', (_, register) => {
+        main.window.webContents.send('saveRegister', register)
+    })
 }
 
 export const windows = {
-    main, barrage, answer, systemTray
+    main, barrage, answer, systemTray, login
 }

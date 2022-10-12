@@ -88,7 +88,7 @@ export const systemTray = {
 
         let tray = systemTray.tray
         let menu = systemTray.menu
-        tray.setToolTip('Bilive-Manager')
+        tray.setToolTip('Bilive Manager')
         tray.setContextMenu(menu)
         tray.on('double-click', () => {
             if (main.window.isVisible()) {

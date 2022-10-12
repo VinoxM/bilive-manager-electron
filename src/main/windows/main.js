@@ -132,7 +132,7 @@ export const main = {
                         cancelId: 2
                     }).then(({response}) => {
                         if (response === 0) {
-                            shell.openItem(filePath)
+                            shell.openPath(filePath)
                         } else {
                             shell.showItemInFolder(filePath)
                         }

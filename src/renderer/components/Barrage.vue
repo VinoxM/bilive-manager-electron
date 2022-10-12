@@ -171,6 +171,7 @@
                     children: []
                 }],
                 cacheOptions: [],
+                cacheMaxNum: 8,
                 // userInfo: {
                 //     uid: 0,
                 //     uname: '',
@@ -499,9 +500,10 @@
                             }).catch(e => {
                                 this_.addHeadLog(e, 1)
                             })
-                            this_.$api.getAvatarContentByUid(roomInfo.uid).then(res => {
+                            this_.$api.getAvatarContentByUid(roomInfo.uid, this_.register.cookie).then(res => {
                                 this_.avatar = res
-                            }).catch(() => {
+                            }).catch((e) => {
+                                console.log(e)
                                 this_.avatar = noface
                             })
                         }
@@ -775,7 +777,7 @@
                         avatar.src = noface
                     })
                 } else {
-                    this.$api.getAvatarContentByUid(data.uid).then(res => {
+                    this.$api.getAvatarContentByUid(data.uid, this.register.cookie).then(res => {
                         avatar.src = res
                     }).catch(e => {
                         avatar.src = noface
@@ -807,7 +809,7 @@
             },
             addEffect(data) {
                 // join area
-                let message = String(data.message).replace('<%', ` <span class="join-uname" uid="${data.uid}">`)
+                let message = String(data.message).replace('<%', ` <span class="join-uname" uid="${data.uid}" style="color:${this.uNameColor}">`)
                 message = message.replace('%>', '</span> ')
                 const p = document.createElement('p')
                 p.setAttribute('class', 'join-p')
@@ -961,7 +963,7 @@
                 const index = this.cacheOptions.findIndex(o => o.value === this.roomTemp)
                 if (index > -1) {
                     this.cacheOptions.splice(index, 1)
-                } else if (this.cacheOptions.length >= 5) {
+                } else if (this.cacheOptions.length >= this.cacheMaxNum) {
                     this.cacheOptions.pop()
                 }
                 this.cacheOptions.unshift({
