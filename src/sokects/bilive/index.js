@@ -131,7 +131,7 @@ export class BiliSocket {
                                 // console.log(body.data)
                                 break;
                             case 'SUPER_CHAT_MESSAGE':
-                            case 'SUPER_CHAT_MESSAGE_JPN':
+                            // case 'SUPER_CHAT_MESSAGE_JPN':
                                 // console.log(body.data)
                                 this.event.emit('sc', {
                                     uid: body.data.uid,

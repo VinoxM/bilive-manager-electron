@@ -389,6 +389,7 @@
                 this.getUserInfo()
             },
             async getUserInfo() {
+                console.log("getUserInfo")
                 this.userLoading = true
                 const this_ = this
                 let userInfo = {}

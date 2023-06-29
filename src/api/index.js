@@ -3,6 +3,9 @@ const querystring = require('querystring')
 
 const http = {
     get: (url, params, headers) => {
+        if (headers) {
+            headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
+        }
         return new Promise((resolve) => {
             request({
                 method: 'GET',
@@ -21,6 +24,7 @@ const http = {
     post: (url, data, headers) => {
         if (headers) {
             headers['content-type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
+            headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
         }
         return new Promise((resolve) => {
             request({
@@ -47,10 +51,13 @@ export default {
         return res.code === 0 ? res.data : Promise.reject(res.message)
     },
     getUserInfoByCookie: async (uid, cookie) => {
-        const url = 'https://api.bilibili.com/x/space/acc/info'
-        const params = {'mid': uid, 'jsonp': 'jsonp'}
-        const headers = {'cookie': cookie, 'Content-type': 'application/json'}
-        const res = await http.get(url, params, headers)
+        const url = 'https://api.bilibili.com/x/space/wbi/acc/info'
+        const params = await handleWbiParams({mid: uid})
+        let res = await http.get(url + '?' + params, null, {cookie})
+        console.log(res)
+        // if (typeof res === "string" && res.startsWith("{\"code\":-509")) {
+        //    res = JSON.parse(res.substring(res.indexOf("}") + 1))
+        // }
         return res.code === 0 ? res.data : Promise.reject(res.message)
     },
     getUserStatByCookie: async (uid, cookie) => {
@@ -100,11 +107,9 @@ export default {
         return Promise.reject(res.message)
     },
     getAvatarContentByUid: async (uid, cookie) => {
-        const url = 'https://api.bilibili.com/x/space/acc/info'
-        const params = {'mid': uid, 'jsonp': 'jsonp'}
-        const headers = {'cookie': cookie, 'Content-type': 'application/json'}
-        const res = await http.get(url, params, headers)
-        console.log(res)
+        const url = 'https://api.bilibili.com/x/space/wbi/acc/info'
+        const params = await handleWbiParams({mid: uid})
+        let res = await http.get(url + '?' + params, null, {cookie})
         if (res.code === 0) {
             const face = res.data.face
             return await getFaceContent(face).catch(e => {
@@ -362,3 +367,69 @@ function checkUpdate(version, curVersion) {
     const curVer = String(curVersion).replace('v', '').split('.')
     return ver.some((o, i) => o - curVer[i] > 0)
 }
+
+
+/**
+ * BiliBili 新版API使用wbi鉴权方式
+ * 参考: https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/user/info.md
+ *
+ * 开始
+ */
+import md5 from 'md5'
+
+const mixinKeyEncTab = [
+    46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+    33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,
+    61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11,
+    36, 20, 34, 44, 52
+]
+
+// 对 imgKey 和 subKey 进行字符顺序打乱编码
+function getMixinKey(orig) {
+    let temp = ''
+    mixinKeyEncTab.forEach((n) => {
+        temp += orig[n]
+    })
+    return temp.slice(0, 32)
+}
+
+function encWbi(params, img_key, sub_key) {
+    const mixin_key = getMixinKey(img_key + sub_key),
+        curr_time = Math.round(Date.now() / 1000),
+        chr_filter = /[!'()*]/g
+    let query = []
+    params = Object.assign(params, {wts: curr_time})    // 添加 wts 字段
+    // 按照 key 重排参数
+    Object.keys(params).sort().forEach((key) => {
+        query.push(
+            encodeURIComponent(key) +
+            '=' +
+            // 过滤 value 中的 "!'()*" 字符
+            encodeURIComponent(('' + params[key]).replace(chr_filter, ''))
+        )
+    })
+    query = query.join('&')
+    const wbi_sign = md5(query + mixin_key) // 计算 w_rid
+    return query + '&w_rid=' + wbi_sign
+}
+
+async function getWbiKeys() {
+    const url = 'https://api.bilibili.com/nav'
+    const res = await http.get(url)
+    const img_url = res.data['wbi_img']['img_url']
+    const sub_url = res.data['wbi_img']['sub_url']
+    return {
+        img_key: img_url.substring(img_url.lastIndexOf('/') + 1, img_url.length).split('.')[0],
+        sub_key: sub_url.substring(sub_url.lastIndexOf('/') + 1, sub_url.length).split('.')[0]
+    }
+}
+
+async function handleWbiParams(params) {
+    const {img_key, sub_key} = await getWbiKeys()
+    return encWbi(params, img_key, sub_key)
+}
+
+/**
+ * BiliBili 新版API的wbi鉴权
+ * 结束
+ */
