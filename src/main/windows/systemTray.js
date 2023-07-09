@@ -90,11 +90,16 @@ export const systemTray = {
         let menu = systemTray.menu
         tray.setToolTip('Bilive Manager')
         tray.setContextMenu(menu)
+        tray.on('click', ()=> {
+            const isOnTop = main.window.isAlwaysOnTop()
+            main.window.setAlwaysOnTop(true)
+            main.window.show()
+            main.window.setAlwaysOnTop(isOnTop)
+        })
         tray.on('double-click', () => {
             if (main.window.isVisible()) {
                 main.window.hide()
-            } else
-                main.window.show()
+            }
         })
     }
 }
