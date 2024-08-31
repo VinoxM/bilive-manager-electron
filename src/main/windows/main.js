@@ -177,14 +177,15 @@ export const main = {
         });
 
         ipcMain.on('no-more-updates', () => {
-            new Notification({
+            const notify = new Notification({
                 body: `已经是最新版本!`,
                 silent: false,
                 icon: live
             }).on('click', () => {
                 barrage.window.show()
-                this.close()
-            }).show()
+                notify.close()
+            })
+            notify.show()
         })
 
         ipcMain.on('check-update-fail', (e, message) => {
