@@ -51,8 +51,8 @@ export default {
         return res.code === 0 ? res.data : Promise.reject(res.message)
     },
     getUserInfoByCookie: async (uid, cookie) => {
-        const url = 'https://api.bilibili.com/x/space/wbi/acc/info'
-        const params = await handleWbiParams({mid: uid})
+        const url = 'https://api.bilibili.com/x/web-interface/nav'
+        const params = ""//await handleWbiParams({mid: uid})
         let res = await http.get(url + '?' + params, null, {cookie})
         console.log(res)
         // if (typeof res === "string" && res.startsWith("{\"code\":-509")) {
